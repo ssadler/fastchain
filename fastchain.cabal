@@ -13,14 +13,22 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
-executable fchain-exe
+executable fastchain
   hs-source-dirs:      src
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
+                     , aeson
+                     , aeson-quick
+                     , base16-bytestring
                      , bytestring
+                     , cryptonite
+                     , http-conduit
+                     , memory
                      , postgresql-simple
+                     , scotty
                      , text
+                     , transformers
   default-language:    Haskell2010
 
 test-suite fchain-test
