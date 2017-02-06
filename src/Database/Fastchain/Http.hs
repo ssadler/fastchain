@@ -8,11 +8,17 @@ import Database.Fastchain.Schema
 import Database.Fastchain.Types
 
 import Database.PostgreSQL.Simple (Connection)
-import Web.Scotty
+import Web.Scotty hiding (request)
 
 
-runServer :: Connection -> Int -> IO ()
-runServer conn port = scotty port $ do
+runHttp :: Node -> IO ()
+runHttp node = do
+  conn <- connectPostgreSQL (_dsn node)
+  runServer conn (_server node) (_httpPort node)
+
+
+runServer :: Connection -> Server -> Int -> IO ()
+runServer conn server = flip scotty $ do
   get "/transactions/" $ do
     offset <- param "offset"
     txs <- lift $ selectTxsFrom conn offset
@@ -20,7 +26,7 @@ runServer conn port = scotty port $ do
 
   post "/transactions/" $ do
     tx <- (.! "{tx}") <$> jsonData
-    lift $ insertTx conn tx
+    lift $ push server $ PostTx tx
     json $ "{status}" .% ("ok"::Text)
 
 

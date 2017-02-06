@@ -23,11 +23,15 @@ executable fastchain
                      , base16-bytestring
                      , bytestring
                      , cryptonite
+                     , containers
                      , http-conduit
                      , memory
+                     , microlens
+                     , microlens-platform
                      , postgresql-simple
                      , scotty
                      , text
+                     , time
                      , transformers
   default-language:    Haskell2010
 

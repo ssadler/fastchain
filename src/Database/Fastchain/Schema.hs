@@ -9,11 +9,19 @@ import qualified Data.ByteString as BS
 import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.Types
 
+import Database.Fastchain.Prelude
 import Database.Fastchain.Types
 
 
-connect :: IO Connection
-connect = connectPostgreSQL "dbname=fastchain"
+dbConnect :: RunNode Connection
+dbConnect = do dsn <- _dsn <$> ask
+               lift $ connectPostgreSQL dsn
+
+
+db :: (Connection -> a -> IO b) -> a -> RunNode b
+db q a0 = do
+  conn <- dbConnect
+  lift $ q conn a0
 
 
 createSchema :: Connection -> IO ()

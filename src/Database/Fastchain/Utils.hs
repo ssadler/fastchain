@@ -9,8 +9,9 @@ import Crypto.PubKey.Ed25519
 import Data.ByteArray as BA
 import Data.ByteString as BS
 import Data.ByteString.Base16 as B16
-
 import Data.ByteString (ByteString)
+import Data.Map (Map, filterWithKey)
+import Data.Set (Set, member)
 
 
 sha3 :: BS.ByteString -> BS.ByteString
@@ -32,3 +33,6 @@ genKeyPairSeed n =
       (CryptoPassed sk) = secretKey (bs::ByteString)
    in (toPublic sk, sk)
 
+
+restrictKeys :: Ord k => Map k a -> Set k -> Map k a
+restrictKeys m s = filterWithKey (\k _ -> member k s) m

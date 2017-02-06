@@ -6,59 +6,43 @@ import Control.Concurrent
 
 import Data.String
 
+import Database.Fastchain.Crypto
 import Database.Fastchain.Prelude
-import Database.Fastchain.Http
+import Database.Fastchain.Node
 import Database.Fastchain.Schema
 import Database.Fastchain.Types
 
 import Network.HTTP.Simple
 
 
-data Node = Node
-  { _httpPort :: Int
-  , _dsn :: ByteString
-  , _pub :: PublicKey
-  , _secret :: SecretKey
-  }
-
-
 main :: IO ()
 main = do
-  let [(p0,s0),(p1,s1),(p2,s2)] = genKeyPairSeed <$> [3000,3001,3002]
-      node0 = Node 3000 "dbname=fastchain0" p0
-      node1 = Node 3001 "dbname=fastchain1" p1
-      node2 = Node 3002 "dbname=fastchain2" p2
+    
+  nodes@[n0,n1,n2] <- mapM createNode [0,1,2]
+  mapM_ (forkIO . runNode) nodes
 
-  n0 <- forkIO $ runNode (node0 s0) [node1 undefined, node2 undefined]
-  n1 <- forkIO $ runNode (node1 s1) [node0 undefined, node2 undefined]
-  n2 <- forkIO $ runNode (node2 s2) [node0 undefined, node1 undefined]
+  let addPeer a b = push (_server a) $ AddPeer (_pubkey b) (_server b)
+
+  mapM_ (addPeer n0) [n1,n2]
+  mapM_ (addPeer n1) [n0,n2]
+  mapM_ (addPeer n2) [n0,n1]
 
   threadDelay 1000000
+
+  print "Running client"
   runClient "http://localhost:3000/transactions"
 
 
-runNode :: Node -> [Node] -> IO ()
-runNode node@(Node port dsn pub secret) upstreams = do
+createNode :: Int -> IO Node
+createNode i = do
+  let (p, s) = genKeyPairSeed i
+      dsn = fromString $ "dbname=fastchain" ++ show i
   conn <- connectPostgreSQL dsn
   createSchema conn
-  mapM_ (forkIO . replicateTxs node) upstreams
-  runServer conn port
-
-
-replicateTxs :: Node -> Node -> IO ()
-replicateTxs (Node _ dsn _ _) (Node port _ _ _) = do
-
-  conn <- connectPostgreSQL dsn
-  let go offset = do
-          let uri = "http://localhost:" ++ show port ++
-                        "/transactions?offset=" ++ show offset
-              req = fromString uri
-          res <- getResponseBody <$> httpJSON req
-          let (mnext,txs) = res .! jsonTxsFrom
-          inserted <- insertTxs conn txs
-          threadDelay 1000 -- 000
-          go $ maybe offset id mnext
-  go (0::Int)
+  server <- newEmptyMVar
+  peers <- newMVar mempty
+  backlog <- newMVar mempty
+  pure $ Node dsn (3000+i) server p s peers backlog
 
 
 runClient :: String -> IO ()
@@ -71,6 +55,6 @@ runClient urlBase = go []
           txid = decodeUtf8 $ sha3 $ toStrict $ encode txBody
           txVal = "{tx}" .% Tx txid spends
       res <- getResponseBody <$> req txVal
-      --threadDelay 1000 -- 000
+      threadDelay 1000000
       go [txid]
 
