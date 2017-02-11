@@ -17,8 +17,8 @@ import qualified Data.Text as T
 
 runChainify :: Node -> IO ()
 runChainify node = forever $ do
-  ct <- getCurrentTime
-  txs <- modifyMVar (_backlog node) $ pure . getMatureTxs ct
+  old <- addUTCTime (-1) <$> getCurrentTime
+  txs <- modifyMVar (_backlog node) $ pure . getMatureTxs old
   infoN node $ T.pack $ show $ length txs
   if null txs
      then threadDelay 1000000
@@ -27,14 +27,14 @@ runChainify node = forever $ do
 
 -- spanAntitone in containers 0.5.10
 getMatureTxs :: UTCTime -> Backlog -> (Backlog, [(UTCTime, Transaction)])
-getMatureTxs ct backlog =
+getMatureTxs old backlog =
   case Map.toAscList backlog of
     [] -> (backlog, [])
     ((t, tx):_) -> do
-      if diffUTCTime ct t > 1
+      if t < old
          then
            let nbl = backlog & at t .~ Nothing
-               (nnbl, ntxs) = getMatureTxs ct nbl
+               (nnbl, ntxs) = getMatureTxs old nbl
             in (nnbl, (t,tx):ntxs)
          else
            (backlog, [])

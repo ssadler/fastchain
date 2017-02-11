@@ -19,6 +19,7 @@ import Database.Fastchain.Prelude
 type Txid = Text
 
 data Transaction = Tx Txid [Txid]
+  deriving (Eq, Show)
 
 instance FromJSON Transaction where
   parseJSON v = uncurry Tx <$> extract "{txid,spends}" v
