@@ -3,12 +3,14 @@
 module Database.Fastchain.Crypto where
 
 
+import Crypto.Hash
 import Crypto.Error (CryptoFailable(..))
 import Crypto.Random
 import qualified Crypto.PubKey.Ed25519 as Ed2
 
-import Data.ByteArray
+import Data.ByteArray as BA
 import Data.ByteString (ByteString)
+import Data.ByteString.Base16 as B16
 
 
 class IsKey k a
@@ -49,3 +51,7 @@ _genKeyPair drg =
   let (bs, _) = randomBytesGenerate 32 drg
       (CryptoPassed sk) = Ed2.secretKey (bs::ByteString)
    in (PK $ Ed2.toPublic sk, SK sk)
+
+
+sha3 :: ByteString -> ByteString
+sha3 bs = B16.encode $ pack $ BA.unpack (hash bs :: Digest SHA3_256)

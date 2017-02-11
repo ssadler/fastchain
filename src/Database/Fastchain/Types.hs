@@ -16,9 +16,9 @@ import Database.Fastchain.Prelude
 -- Transaction
 
 
-type TxId = Text
+type Txid = Text
 
-data Transaction = Tx TxId [TxId]
+data Transaction = Tx Txid [Txid]
 
 instance FromJSON Transaction where
   parseJSON v = uncurry Tx <$> extract "{txid,spends}" v
@@ -39,6 +39,10 @@ instance FromRow Transaction where
 
 type PeerId = PublicKey
 
+type Peers = Map PeerId Server
+
+type Backlog = Map UTCTime Transaction
+
 type Server = MVar NodeQuery
 
 data Node = Node
@@ -47,8 +51,8 @@ data Node = Node
   , _server :: Server
   , _pubkey :: PublicKey
   , _secret :: SecretKey
-  , _peers :: MVar (Map PeerId Server)
-  , _backlog :: MVar (Map UTCTime Transaction)
+  , _peers :: MVar Peers
+  , _backlog :: MVar Backlog
   }
 
 
@@ -59,6 +63,6 @@ type SigMap = Map PublicKey Signature
 data NodeQuery =
     AddPeer PeerId Server
   | PostTx Transaction
-  | PlzTimestamp Transaction UTCTime (MVar (Maybe Signature))
+  | PlzTimestamp Txid UTCTime (MVar (Maybe Signature))
   | HasTimestamp Transaction UTCTime SigMap
   

@@ -24,6 +24,7 @@ executable fastchain
                      , bytestring
                      , cryptonite
                      , containers
+                     , fast-logger
                      , http-conduit
                      , memory
                      , microlens
@@ -33,6 +34,12 @@ executable fastchain
                      , text
                      , time
                      , transformers
+  other-modules:       Database.Fastchain.Crypto
+                       Database.Fastchain.Http
+                       Database.Fastchain.Node
+                       Database.Fastchain.Prelude
+                       Database.Fastchain.Schema
+                       Database.Fastchain.Types
   default-language:    Haskell2010
 
 test-suite fchain-test

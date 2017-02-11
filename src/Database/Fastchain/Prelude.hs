@@ -7,15 +7,16 @@ module Database.Fastchain.Prelude
   , module DTC
   , module DTE
   , module Data.Maybe
+  , module LM
+  , module LMP
+  , module Map
   , module MIC
   , ByteString
-  , Map
   , MVar
   , Text
   , lift
   , (<>)
   -- local
-  , sha3
   , request
   , push
   ) where
@@ -26,14 +27,10 @@ import Control.Monad.IO.Class as MIC
 import Control.Monad.Trans.Reader as CMR
 import Control.Monad.Trans.Class
 
-import Crypto.Hash
-
 import Data.Aeson.Quick as AEQ hiding (json)
 import Data.ByteString.Lazy as BSL (toStrict, fromStrict)
-import Data.ByteArray as BA
 import Data.ByteString as BS
-import Data.ByteString.Base16 as B16
-import Data.Map (Map)
+import Data.Map.Strict as Map (Map, fromList, toList)
 import Data.Maybe
 import Data.Monoid
 import Data.Text
@@ -42,9 +39,8 @@ import Data.Time.Clock as DTC
 
 import Database.PostgreSQL.Simple as DPS hiding (connect)
 
-
-sha3 :: BS.ByteString -> BS.ByteString
-sha3 bs = B16.encode $ BS.pack $ BA.unpack (hash bs :: Digest SHA3_256)
+import Lens.Micro as LM
+import Lens.Micro.Platform as LMP ()
 
 
 request :: MonadIO m => MVar a -> (MVar b -> a) -> m b
