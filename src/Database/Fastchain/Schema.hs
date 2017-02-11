@@ -5,7 +5,6 @@ module Database.Fastchain.Schema where
 
 import Data.Int
 
-import qualified Data.ByteString as BS
 import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.Types
 
@@ -19,7 +18,13 @@ dbConnect = connectPostgreSQL . _dsn
 db :: Node -> (Connection -> a -> IO b) -> a -> IO b
 db node q a0 = do
   conn <- dbConnect node
-  q conn a0
+  q conn a0 <* close conn
+
+
+db_ :: Node -> (Connection -> IO b) -> IO b
+db_ node q = do
+  conn <- dbConnect node
+  q conn <* close conn
 
 
 createSchema :: Connection -> IO ()
@@ -53,10 +58,9 @@ selectTxsFrom conn from = query conn sql (from, from+1000)
 
 
 getSpentOf :: Connection -> [Txid] -> IO [Txid]
-getSpentOf conn = fmap (fmap fromOnly) . query conn sql . Only . PGArray
-  where sql = "select s from \
+getSpentOf conn txids = fmap fromOnly <$> query conn sql args
+  where args = (PGArray txids, PGArray txids)
+        sql = "select s from \
     \ ( select unnest(spends) as s from transactions \
-    \   where (spends::text[]) && ? \
-    \ ) as matches \
-    \ where s IN ?"
-
+    \   where (spends::text[]) && ? ) as matches \
+    \ where s = ANY (?)"
