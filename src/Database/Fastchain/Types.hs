@@ -56,8 +56,6 @@ data Node = Node
   }
 
 
-type RunNode a = ReaderT Node IO a
-
 type SigMap = Map PublicKey Signature
 
 data NodeQuery =

@@ -6,8 +6,6 @@ module Database.Fastchain.Node
 
 import Control.Concurrent
 
-import Control.Monad.Trans.Reader
-
 import qualified Data.ByteString.Char8 as C8
 import qualified Data.Map.Strict as Map
 import Data.Time
@@ -25,29 +23,29 @@ runNode node = do
   forkIO $ runChainify node
   forever $ do
     req <- takeMVar $ _server node
-    runReaderT (handle req) node
+    handle node req
 
 
-handle :: NodeQuery -> RunNode ()
-handle (PostTx tx) = onPostTransaction tx
+handle :: Node -> NodeQuery -> IO ()
+handle node (PostTx tx) = onPostTransaction node tx
 
-handle (AddPeer peerId server) = do
-  peers <- _peers <$> ask
-  lift $ modifyMVar_ peers $ pure . (& at peerId .~ Just server)
+handle node (AddPeer peerId server) = do
+  let peers = _peers node
+   in modifyMVar_ peers $ pure . (& at peerId .~ Just server)
 
-handle (PlzTimestamp tx t out) = onRelayTransaction tx t >>= push out
+handle node (PlzTimestamp tx t out) =
+  onRelayTransaction node tx t >>= push out
 
-handle (HasTimestamp tx t sigs) = onTimestampedTx tx t sigs
+handle node (HasTimestamp tx t sigs) = onTimestampedTx node tx t sigs
 
 
 -- | Get a timestamp, check and write to backlog
-onTimestampedTx :: Transaction -> UTCTime -> SigMap -> RunNode ()
-onTimestampedTx tx t sigs = do
-  peers <- (_peers <$> ask) >>= lift . readMVar
+onTimestampedTx :: Node -> Transaction -> UTCTime -> SigMap -> IO ()
+onTimestampedTx node tx t sigs = do
+  peers <- readMVar $ _peers node
   let sigsValid = sigsAreGood peers (C8.pack $ show t) sigs
-  when sigsValid $ do
-    mbacklog <- _backlog <$> ask
-    lift $ modifyMVar_ mbacklog $ pure . (& at t .~ Just tx)
+  when sigsValid $
+    modifyMVar_ (_backlog node) $ pure . (& at t .~ Just tx)
 
 
 -- | Calculate whether or not a map of node keys -> signatures meets
@@ -60,19 +58,18 @@ sigsAreGood peers payload sigs = do
    in neededSigs <= numValid
 
 
-onPostTransaction :: Transaction -> RunNode ()
-onPostTransaction tx@(Tx txid _) = do
+onPostTransaction :: Node -> Transaction -> IO ()
+onPostTransaction node tx@(Tx txid _) = do
   -- Sign and timestamp the tx
-  time <- lift getCurrentTime
-  sig <- signTxTime txid time
-  pk <- _pubkey <$> ask
+  time <- getCurrentTime
+  let sig = signTxTime node txid time
 
   -- Ask other nodes to sign timestamp
-  peers <- (_peers <$> ask) >>= lift . readMVar
+  peers <- readMVar $ _peers node
   msigs <- forM (toList peers) $ \(peerId, server) -> do
       msig <- request server $ PlzTimestamp txid time
       pure $ (,) peerId <$> msig
-  let sigs = fromList $ (pk, sig) : catMaybes msigs
+  let sigs = fromList $ (_pubkey node, sig) : catMaybes msigs
   
   -- If enough sigs, broadcast once again.
   -- TODO: verify
@@ -84,19 +81,18 @@ onPostTransaction tx@(Tx txid _) = do
 
 
 -- | Got a relayed transaction. Validate timestamp and respond with sig.
-onRelayTransaction :: Txid -> UTCTime -> RunNode (Maybe Signature)
-onRelayTransaction txid t = do
-  time <- lift getCurrentTime
+onRelayTransaction :: Node -> Txid -> UTCTime -> IO (Maybe Signature)
+onRelayTransaction node txid t = do
+  time <- getCurrentTime
   if t < time && addUTCTime 1 t >= time
-     then Just <$> nodeSign (encodeUtf8 txid)
+     then pure $ Just $ nodeSign node (encodeUtf8 txid)
      else pure Nothing
 
 
-signTxTime :: Txid -> UTCTime -> RunNode Signature
-signTxTime txid time = nodeSign $ encodeUtf8 txid <> " " <> C8.pack (show time)
+signTxTime :: Node -> Txid -> UTCTime -> Signature
+signTxTime node txid time = nodeSign node $
+    encodeUtf8 txid <> " " <> C8.pack (show time)
 
 
-nodeSign :: ByteString -> RunNode Signature
-nodeSign payload = do
-  n <- ask
-  pure $ sign (_secret n) (_pubkey n) payload
+nodeSign :: Node -> ByteString -> Signature
+nodeSign n payload = sign (_secret n) (_pubkey n) payload

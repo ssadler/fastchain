@@ -2,7 +2,6 @@ module Database.Fastchain.Prelude
   ( module AEQ
   , module BSL
   , module CM
-  , module CMR
   , module DPS
   , module DTC
   , module DTE
@@ -24,7 +23,6 @@ module Database.Fastchain.Prelude
 import Control.Concurrent
 import Control.Monad as CM
 import Control.Monad.IO.Class as MIC
-import Control.Monad.Trans.Reader as CMR
 import Control.Monad.Trans.Class
 
 import Data.Aeson.Quick as AEQ hiding (json)
