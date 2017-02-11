@@ -10,6 +10,7 @@ module Database.Fastchain.Prelude
   , module LMP
   , module Map
   , module MIC
+  , module SL
   , ByteString
   , MVar
   , Text
@@ -40,6 +41,15 @@ import Database.PostgreSQL.Simple as DPS hiding (connect)
 import Lens.Micro as LM
 import Lens.Micro.Platform as LMP ()
 
+import System.Log.Logger as SL
+import System.Log.Handler as SL (setFormatter)
+import System.Log.Handler.Simple as SL
+import System.Log.Formatter as SL
+
+
+
+--------------------------------------------------------------------------------
+-- Actor interface
 
 request :: MonadIO m => MVar a -> (MVar b -> a) -> m b
 request node part = liftIO $ do
@@ -50,4 +60,3 @@ request node part = liftIO $ do
 
 push :: MonadIO m => MVar a -> a -> m ()
 push n = liftIO . putMVar n
-

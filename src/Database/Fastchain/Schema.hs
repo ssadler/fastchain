@@ -28,15 +28,14 @@ createSchema conn = do
   execute_ conn "create table transactions (\
                   \ seq serial, \
                   \ txid varchar(64) not null unique, \
-                  \ spends varchar(64)[] not null, \
-                  \ voted boolean not null default false, \
-                  \ parent bigint )"
+                  \ ts timestamp with time zone, \
+                  \ spends varchar(64)[] not null )"
   pure ()
 
 
 insertTx :: Connection -> Transaction -> IO Int64
-insertTx conn = execute conn "insert into transactions (txid,spends) \
-                               \ values (?, ?)" 
+insertTx conn = execute conn "insert into transactions (txid,ts,spends) \
+                               \ values (?,?,?)" 
 
 
 insertTxs :: Connection -> [Transaction] -> IO Int64
@@ -53,8 +52,11 @@ selectTxsFrom conn from = query conn sql (from, from+1000)
             \ where seq >= ? and seq < ? order by seq asc"
 
 
-getSpend :: Connection -> BS.ByteString -> IO [Only BS.ByteString]
-getSpend conn = query conn sql . Only . PGArray . (:[])
-  where sql = "select txid from transactions \
-                \ where spends @> ? and parent is not null \
-                \ limit 1"
+getSpentOf :: Connection -> [Txid] -> IO [Txid]
+getSpentOf conn = fmap (fmap fromOnly) . query conn sql . Only . PGArray
+  where sql = "select s from \
+    \ ( select unnest(spends) as s from transactions \
+    \   where (spends::text[]) && ? \
+    \ ) as matches \
+    \ where s IN ?"
+

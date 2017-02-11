@@ -9,7 +9,7 @@ import Crypto.Random
 import qualified Crypto.PubKey.Ed25519 as Ed2
 
 import Data.ByteArray as BA
-import Data.ByteString (ByteString)
+import Data.ByteString as BS (ByteString, take)
 import Data.ByteString.Base16 as B16
 
 
@@ -54,4 +54,4 @@ _genKeyPair drg =
 
 
 sha3 :: ByteString -> ByteString
-sha3 bs = B16.encode $ pack $ BA.unpack (hash bs :: Digest SHA3_256)
+sha3 bs = BS.take 16 $ B16.encode $ pack $ BA.unpack (hash bs :: Digest SHA3_256)

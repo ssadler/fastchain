@@ -24,8 +24,8 @@ executable fastchain
                      , bytestring
                      , cryptonite
                      , containers
-                     , fast-logger
                      , http-conduit
+                     , hslogger
                      , memory
                      , microlens
                      , microlens-platform

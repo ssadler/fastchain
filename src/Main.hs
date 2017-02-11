@@ -14,9 +14,13 @@ import Database.Fastchain.Types
 
 import Network.HTTP.Simple
 
+import System.IO
+
 
 main :: IO ()
 main = do
+
+  setupLogging
     
   nodes@[n0,n1,n2] <- mapM createNode [0,1,2]
   mapM_ (forkIO . runNode) nodes
@@ -29,7 +33,7 @@ main = do
 
   threadDelay 1000000
 
-  print "Running client"
+  infoM "main" "Running client"
   runClient "http://localhost:3000/transactions"
 
 
@@ -57,4 +61,11 @@ runClient urlBase = go []
       res <- getResponseBody <$> req txVal
       threadDelay 1000000
       go [txid]
+
+
+setupLogging :: IO ()
+setupLogging = do
+  let fmt = tfLogFormatter "%T" "$loggername \t$msg"
+  h <- flip setFormatter fmt <$> streamHandler stderr DEBUG
+  updateGlobalLogger "" $ setLevel DEBUG . setHandlers [h]
 

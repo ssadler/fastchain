@@ -13,8 +13,11 @@ import Data.Time
 import Database.Fastchain.Chain
 import Database.Fastchain.Crypto
 import Database.Fastchain.Http
+import Database.Fastchain.Logging
 import Database.Fastchain.Prelude
 import Database.Fastchain.Types
+
+import qualified Data.Text as T
 
 
 runNode :: Node -> IO ()
@@ -34,65 +37,77 @@ handle node (AddPeer peerId server) = do
    in modifyMVar_ peers $ pure . (& at peerId .~ Just server)
 
 handle node (PlzTimestamp tx t out) =
-  onRelayTransaction node tx t >>= push out
+  onTimestamp node tx t >>= push out
 
 handle node (HasTimestamp tx t sigs) = onTimestampedTx node tx t sigs
 
 
--- | Get a timestamp, check and write to backlog
+-- | Get a timestamed transaction, check and write to backlog
 onTimestampedTx :: Node -> Transaction -> UTCTime -> SigMap -> IO ()
-onTimestampedTx node tx t sigs = do
+onTimestampedTx node tx@(Tx txid _) t sigs = do
   peers <- readMVar $ _peers node
-  let sigsValid = sigsAreGood peers (C8.pack $ show t) sigs
-  when sigsValid $
+  let payload = txidPayload txid t
+  let (sigsValid,_,_) = checkSigs peers payload sigs
+  when sigsValid $ do
     modifyMVar_ (_backlog node) $ pure . (& at t .~ Just tx)
+    infoN node $ "Writing tx to backlog"
 
 
 -- | Calculate whether or not a map of node keys -> signatures meets
 -- requirements
-sigsAreGood :: Peers -> ByteString -> SigMap -> Bool
-sigsAreGood peers payload sigs = do
+checkSigs :: Peers -> ByteString -> SigMap -> (Bool, Int, Int)
+checkSigs peers payload sigs = do
   let neededSigs = 1 + floor (fromIntegral (length peers) / 2 :: Double)
       goodSig (pk,sig) = Map.member pk peers && verify pk payload sig
       numValid = length $ filter goodSig $ toList sigs
-   in neededSigs <= numValid
+   in (neededSigs <= numValid, neededSigs, numValid)
 
 
+txidPayload :: Txid -> UTCTime -> ByteString
+txidPayload txid time = encodeUtf8 txid <> " " <> C8.pack (show time)
+
+
+-- | Client posts new transaction
 onPostTransaction :: Node -> Transaction -> IO ()
 onPostTransaction node tx@(Tx txid _) = do
+  let info msg = infoN node $ "onPostTransaction:" <> txid <> ": " <> msg
   -- Sign and timestamp the tx
   time <- getCurrentTime
-  let sig = signTxTime node txid time
+  let payload = txidPayload txid time
+  info $ "Signing tx payload: " <> decodeUtf8 payload
+  let sig = nodeSign node $ txidPayload txid time
 
   -- Ask other nodes to sign timestamp
   peers <- readMVar $ _peers node
+  info $ T.pack $ "Asking " ++ show (Map.size peers) ++ " to sign"
   msigs <- forM (toList peers) $ \(peerId, server) -> do
       msig <- request server $ PlzTimestamp txid time
       pure $ (,) peerId <$> msig
   let sigs = fromList $ (_pubkey node, sig) : catMaybes msigs
   
   -- If enough sigs, broadcast once again.
-  -- TODO: verify
-  let neededSigs = ceiling (fromIntegral (length peers) / 2 :: Double)
-  if length sigs >= neededSigs
-     then forM_ (toList peers) $ \(_, server) ->
-            push server $ HasTimestamp tx time sigs
-     else return ()
+  let (sigsPass, needed, valid) = checkSigs peers payload sigs
+  info $ "Got sigs: " <> T.pack (show (needed, valid))
+  when sigsPass $
+   forM_ (toList peers) $ \(_, server) ->
+     push server $ HasTimestamp tx time sigs
 
 
 -- | Got a relayed transaction. Validate timestamp and respond with sig.
-onRelayTransaction :: Node -> Txid -> UTCTime -> IO (Maybe Signature)
-onRelayTransaction node txid t = do
+onTimestamp :: Node -> Txid -> UTCTime -> IO (Maybe Signature)
+onTimestamp node txid t = do
   time <- getCurrentTime
-  if t < time && addUTCTime 1 t >= time
-     then pure $ Just $ nodeSign node (encodeUtf8 txid)
-     else pure Nothing
-
-
-signTxTime :: Node -> Txid -> UTCTime -> Signature
-signTxTime node txid time = nodeSign node $
-    encodeUtf8 txid <> " " <> C8.pack (show time)
+  let ndiff = diffUTCTime time t
+  let diff = realToFrac ndiff :: Double
+  infoN node $ T.pack $ "Got timestamp request: " ++ show ndiff
+  if diff > 0 && diff < 0.01
+     then do
+       infoN node $ "signing timestamp"
+       pure $ Just $ nodeSign node $ txidPayload txid t
+     else do
+      infoN node $ "timestamp out of bounds"
+      pure Nothing
 
 
 nodeSign :: Node -> ByteString -> Signature
-nodeSign n payload = sign (_secret n) (_pubkey n) payload
+nodeSign n = sign (_secret n) (_pubkey n)
