@@ -22,7 +22,7 @@ runServer conn server = flip scotty $ do
   get "/transactions/" $ do
     offset <- param "offset"
     txs <- lift $ selectTxsFrom conn offset
-    json $ jsonTxsFrom .% (nextSeq txs, [tx | (_:.tx) <- txs])
+    json $ jsonTxsFrom .% (nextSeq txs, [tx | (_, tx) <- txs])
 
   post "/transactions/" $ do
     tx <- (.! "{tx}") <$> jsonData
@@ -34,6 +34,6 @@ jsonTxsFrom :: Structure
 jsonTxsFrom = "{next,transactions}"
 
 
-nextSeq :: [(Only Integer :. Transaction)] -> Maybe Integer
+nextSeq :: [(Integer, a)] -> Maybe Integer
 nextSeq [] = Nothing
-nextSeq txs = let (Only s :. _) = last txs in Just $ s + 1
+nextSeq txs = let (s, _) = last txs in Just $ s + 1

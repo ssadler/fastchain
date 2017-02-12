@@ -6,17 +6,20 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import Control.Concurrent
+import qualified Data.Set as Set
 
-import Database.Fastchain.Chain
 import Database.Fastchain.Crypto
 import Database.Fastchain.Prelude
 import Database.Fastchain.Schema
 import Database.Fastchain.Types
 
+import TestChainify
+import TestCommon
+
 
 main :: IO ()
 main = defaultMain $ testGroup "Tests" [ dbTests
-                                       , pureTests
+                                       , testChainify
                                        ]
 
 
@@ -35,47 +38,12 @@ dbTests = testGroup "dbTests" [
   , testCase "getSpentOf" $ do
       node <- dbSetup 100
       txids <- db node getSpentOf [mkTxid 3, mkTxid 100001]
-      txids @?= [mkTxid 3]
+      txids @?= Set.singleton (mkTxid 3)
   ]
 
 
 dbSetup :: Int -> IO Node
 dbSetup ntxs = do
-  let (p, s) = genKeyPairSeed 10000
-      dsn = "dbname=fastchaintest"
-  server <- newEmptyMVar
-  peers <- newMVar mempty
-  backlog <- newMVar mempty
-  let node = Node dsn 5000 server p s peers backlog
-  db_ node createSchema
-  db node insertTxs $ mkTxs ntxs
+  node <- mkTestNode
+  db node insertTxs $ stx <$> [0..ntxs-1]
   pure node
-
-
-mkTxs :: Int -> [Transaction]
-mkTxs 0 = []
-mkTxs n = Tx (mkTxid n) [mkTxid $ n+1] : mkTxs (n-1)
-
-
-mkTxid :: Int -> Txid
-mkTxid = decodeUtf8 . sha3 . BS.pack . show
-
-
---------------------------------------------------------------------------------
--- pure
-
-
-pureTests :: TestTree
-pureTests = testGroup "pureTests" [
-  testCase "getMatureTxs" $ do
-    ct <- getCurrentTime
-    let old = addUTCTime (-3700) ct
-        [a, b, c] = zip (steppedTimes ct (-3600)) (mkTxs 3)
-        backlog = fromList [c, b, a]
-    getMatureTxs old backlog @?= (fromList [a, b], [c])
-  ]
-
-
-steppedTimes :: UTCTime -> Double -> [UTCTime]
-steppedTimes t n = t : steppedTimes (addUTCTime (realToFrac n) t) n
-

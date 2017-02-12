@@ -3,11 +3,12 @@
 
 module Database.Fastchain.Schema where
 
-import Data.Int
+import qualified Data.Set as Set
 
 import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.Types
 
+import Database.Fastchain.Prelude
 import Database.Fastchain.Types
 
 
@@ -32,8 +33,8 @@ createSchema conn = do
   execute_ conn "drop table if exists transactions"
   execute_ conn "create table transactions (\
                   \ seq serial, \
-                  \ txid varchar(64) not null unique, \
                   \ ts timestamp with time zone, \
+                  \ txid varchar(64) not null unique, \
                   \ spends varchar(64)[] not null )"
   pure ()
 
@@ -43,22 +44,24 @@ insertTx conn = execute conn "insert into transactions (txid,ts,spends) \
                                \ values (?,?,?)" 
 
 
-insertTxs :: Connection -> [Transaction] -> IO Int64
-insertTxs conn = executeMany conn sql
+insertTxs :: Connection -> [STX] -> IO Int64
+insertTxs conn = executeMany conn sql . map (\(ts, tx) -> Only ts :. tx)
   where
-    sql = "insert into transactions (txid,spends) values (?, ?) \
+    sql = "insert into transactions (ts,txid,spends) values (?, ?, ?) \
             \ on conflict (txid) do nothing"
 
 
-selectTxsFrom :: Connection -> Int -> IO [Only Integer :. Transaction]
-selectTxsFrom conn from = query conn sql (from, from+1000)
+selectTxsFrom :: Connection -> Int -> IO [(Integer, STX)]
+selectTxsFrom conn from = map unRow <$> query conn sql (from, from+1000)
   where
-    sql = "select seq, txid, spends from transactions \
+    unRow (Only s :. Only t :. tx) = (s,(t,tx))
+    sql = "select seq, ts, txid, spends from transactions \
             \ where seq >= ? and seq < ? order by seq asc"
 
 
-getSpentOf :: Connection -> [Txid] -> IO [Txid]
-getSpentOf conn txids = fmap fromOnly <$> query conn sql args
+getSpentOf :: Connection -> [Txid] -> IO (Set Txid)
+getSpentOf conn txids =
+  Set.fromList <$> fmap fromOnly <$> query conn sql args
   where args = (PGArray txids, PGArray txids)
         sql = "select s from \
     \ ( select unnest(spends) as s from transactions \

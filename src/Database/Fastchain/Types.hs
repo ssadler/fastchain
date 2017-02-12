@@ -18,6 +18,8 @@ import Database.Fastchain.Prelude
 
 type Txid = Text
 
+type STX = (UTCTime, Transaction)
+
 data Transaction = Tx Txid [Txid]
   deriving (Eq, Show)
 

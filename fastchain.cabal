@@ -42,7 +42,7 @@ executable fastchain
                        Database.Fastchain.Types
   default-language:    Haskell2010
 
-test-suite fchain-test
+test-suite testss
   type:                exitcode-stdio-1.0
   hs-source-dirs:      src, test
   main-is:             TestMain.hs

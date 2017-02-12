@@ -3,16 +3,14 @@ module Database.Fastchain.Prelude
   , module BSL
   , module CM
   , module DPS
-  , module DTC
   , module DTE
   , module Data.Maybe
   , module LM
-  , module LMP
   , module Map
   , module MIC
   , module SL
+  , module ALL
   , ByteString
-  , MVar
   , Text
   , lift
   , (<>)
@@ -21,7 +19,7 @@ module Database.Fastchain.Prelude
   , push
   ) where
 
-import Control.Concurrent
+import Control.Concurrent as ALL
 import Control.Monad as CM
 import Control.Monad.IO.Class as MIC
 import Control.Monad.Trans.Class
@@ -29,23 +27,24 @@ import Control.Monad.Trans.Class
 import Data.Aeson.Quick as AEQ hiding (json)
 import Data.ByteString.Lazy as BSL (toStrict, fromStrict)
 import Data.ByteString as BS
+import Data.Int as ALL
 import Data.Map.Strict as Map (Map, fromList, toList)
 import Data.Maybe
 import Data.Monoid
+import Data.Set as ALL (Set)
 import Data.Text
 import Data.Text.Encoding as DTE (encodeUtf8, decodeUtf8)
-import Data.Time.Clock as DTC
+import Data.Time.Clock as ALL
 
 import Database.PostgreSQL.Simple as DPS hiding (connect)
 
 import Lens.Micro as LM
-import Lens.Micro.Platform as LMP ()
+import Lens.Micro.Platform as ALL ()
 
 import System.Log.Logger as SL
 import System.Log.Handler as SL (setFormatter)
 import System.Log.Handler.Simple as SL
 import System.Log.Formatter as SL
-
 
 
 --------------------------------------------------------------------------------
