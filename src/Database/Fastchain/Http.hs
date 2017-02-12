@@ -26,7 +26,7 @@ runServer conn server = flip scotty $ do
 
   post "/transactions/" $ do
     tx <- (.! "{tx}") <$> jsonData
-    lift $ push server $ PostTx tx
+    lift $ push server $ PushTx tx
     json $ "{status}" .% ("ok"::Text)
 
 

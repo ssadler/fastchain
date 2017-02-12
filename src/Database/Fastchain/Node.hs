@@ -30,24 +30,24 @@ runNode node = do
 
 
 handle :: Node -> NodeQuery -> IO ()
-handle node (PostTx tx) = onPostTransaction node tx
+handle node (PushTx tx) = pushTx node tx
 
 handle node (AddPeer peerId server) = do
   let peers = _peers node
    in modifyMVar_ peers $ pure . (& at peerId .~ Just server)
 
-handle node (PlzTimestamp tx t out) =
+handle node (SignTimestamp tx t out) =
   onTimestamp node tx t >>= push out
 
-handle node (HasTimestamp tx t sigs) = onTimestampedTx node tx t sigs
+handle node (RelayTx stx sigs) = onTimestampedTx node stx sigs
 
 
 -- | Get a timestamed transaction, check and write to backlog
-onTimestampedTx :: Node -> Transaction -> UTCTime -> SigMap -> IO ()
-onTimestampedTx node tx@(Tx txid _) t sigs = do
+onTimestampedTx :: Node -> STX -> SigMap -> IO ()
+onTimestampedTx node (t,tx@(Tx txid _)) sigs = do
   peers <- readMVar $ _peers node
   let payload = txidPayload txid t
-  let (sigsValid,_,_) = checkSigs peers payload sigs
+      (sigsValid,_,_) = checkSigs peers payload sigs
   when sigsValid $ do
     modifyMVar_ (_backlog node) $ pure . (& at t .~ Just tx)
     infoN node $ "Writing tx to backlog"
@@ -68,8 +68,8 @@ txidPayload txid time = encodeUtf8 txid <> " " <> C8.pack (show time)
 
 
 -- | Client posts new transaction
-onPostTransaction :: Node -> Transaction -> IO ()
-onPostTransaction node tx@(Tx txid _) = do
+pushTx :: Node -> Transaction -> IO ()
+pushTx node tx@(Tx txid _) = do
   let info msg = infoN node $ "onPostTransaction:" <> txid <> ": " <> msg
   -- Sign and timestamp the tx
   time <- getCurrentTime
@@ -81,7 +81,7 @@ onPostTransaction node tx@(Tx txid _) = do
   peers <- readMVar $ _peers node
   info $ T.pack $ "Asking " ++ show (Map.size peers) ++ " to sign"
   msigs <- forM (toList peers) $ \(peerId, server) -> do
-      msig <- request server $ PlzTimestamp txid time
+      msig <- request server $ SignTimestamp txid time
       pure $ (,) peerId <$> msig
   let sigs = fromList $ (_pubkey node, sig) : catMaybes msigs
   
@@ -90,7 +90,7 @@ onPostTransaction node tx@(Tx txid _) = do
   info $ "Got sigs: " <> T.pack (show (needed, valid))
   when sigsPass $
    forM_ (toList peers) $ \(_, server) ->
-     push server $ HasTimestamp tx time sigs
+     push server $ RelayTx (time,tx) sigs
 
 
 -- | Got a relayed transaction. Validate timestamp and respond with sig.

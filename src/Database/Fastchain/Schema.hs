@@ -33,9 +33,9 @@ createSchema conn = do
   execute_ conn "drop table if exists transactions"
   execute_ conn "create table transactions (\
                   \ seq serial, \
-                  \ ts timestamp with time zone, \
                   \ txid varchar(64) not null unique, \
-                  \ spends varchar(64)[] not null )"
+                  \ spends varchar(64)[] not null, \
+                  \ ts timestamp with time zone) "
   pure ()
 
 

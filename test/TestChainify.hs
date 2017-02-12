@@ -14,6 +14,9 @@ import Database.Fastchain.Types
 
 import TestCommon
 
+tc :: Chainify IO
+tc = let u = error "not used" in Chainify u u u u
+
 
 testChainify :: TestTree
 testChainify = testGroup "chainify" [
@@ -28,9 +31,9 @@ testChainify = testGroup "chainify" [
       let getSO txids = do
             txids @?= map mkTxid [1,2,3,4]
             pure $ Set.singleton $ mkTxid 1
-      let tc = Chainify getSO undefined undefined undefined
+      let tc' = tc {getSpentOf' = getSO}
           stxs = map stx [0,1,2] ++ map stx [1,2,3] ++ [(now, Tx "NNN" ["4"])]
-      noDoubleSpends tc stxs >>= (@?= map stx [1,2,3])
+      noDoubleSpends tc' stxs >>= (@?= map stx [1,2,3])
   
   , testCase "integrate" $ do
       node <- mkTestNode

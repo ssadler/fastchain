@@ -49,7 +49,7 @@ processBacklog ch old = do
 
 
 -- add transactions to chain. transactions should be in order.
-chainify :: Monad m => Chainify m -> [(UTCTime, Transaction)] -> m ()
+chainify :: Monad m => Chainify m -> [STX] -> m ()
 chainify ch txs = do
   nonds <- noDoubleSpends ch txs
   insertTxs' ch nonds
@@ -57,7 +57,7 @@ chainify ch txs = do
 
 
 -- spanAntitone in containers 0.5.10
-getMatureTxs :: UTCTime -> Backlog -> (Backlog, [(UTCTime, Transaction)])
+getMatureTxs :: UTCTime -> Backlog -> (Backlog, [STX])
 getMatureTxs old backlog =
   case Map.toAscList backlog of
     [] -> (backlog, [])
@@ -72,14 +72,13 @@ getMatureTxs old backlog =
 
 
 noDoubleSpends :: Monad m => Chainify m -> [STX] -> m [STX]
-noDoubleSpends validate txs = do
+noDoubleSpends ch txs = do
   let allSpends = nub $ concat [s | (_,Tx _ s) <- txs]
-  spent <- getSpentOf' validate allSpends
-  let nondouble = nonDoubleSpent spent txs
-  pure nondouble
+  spent <- getSpentOf' ch allSpends
+  pure $ nonDoubleSpent spent txs
 
 
-nonDoubleSpent :: (Set Txid) -> [STX] -> [STX]
+nonDoubleSpent :: Set Txid -> [STX] -> [STX]
 nonDoubleSpent _ [] = []
 nonDoubleSpent spent (stx@(_, Tx _ spends):rest) =
   let spending = Set.fromList spends
@@ -87,4 +86,3 @@ nonDoubleSpent spent (stx@(_, Tx _ spends):rest) =
    in if null $ Set.intersection spent spending
          then stx : nonDoubleSpent allSpends rest
          else nonDoubleSpent spent rest
-  

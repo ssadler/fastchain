@@ -63,7 +63,7 @@ type SigMap = Map PublicKey Signature
 
 data NodeQuery =
     AddPeer PeerId Server
-  | PostTx Transaction
-  | PlzTimestamp Txid UTCTime (MVar (Maybe Signature))
-  | HasTimestamp Transaction UTCTime SigMap
+  | PushTx Transaction
+  | SignTimestamp Txid UTCTime (MVar (Maybe Signature))
+  | RelayTx STX SigMap
   
