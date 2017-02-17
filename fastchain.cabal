@@ -21,7 +21,10 @@ executable fastchain
                      , aeson
                      , aeson-quick
                      , base16-bytestring
+                     , binary
+                     , binary-orphans
                      , bytestring
+                     , directory
                      , cryptonite
                      , containers
                      , http-conduit
@@ -34,6 +37,7 @@ executable fastchain
                      , text
                      , time
                      , transformers
+                     , zeromq4-haskell
   other-modules:       Database.Fastchain.Crypto
                        Database.Fastchain.Http
                        Database.Fastchain.Node

@@ -12,5 +12,5 @@ import Data.Text as T
 
 infoN :: Node -> Text -> IO ()
 infoN node = 
-  let name = "node:" ++ show (_httpPort node)
+  let name = "node"
    in infoM name . T.unpack

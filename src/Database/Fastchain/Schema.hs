@@ -3,6 +3,7 @@
 
 module Database.Fastchain.Schema where
 
+import qualified Data.ByteString.Char8 as C8
 import qualified Data.Set as Set
 
 import Database.PostgreSQL.Simple
@@ -13,7 +14,7 @@ import Database.Fastchain.Types
 
 
 dbConnect :: Node -> IO Connection
-dbConnect = connectPostgreSQL . _dsn
+dbConnect = connectPostgreSQL . C8.pack . dsn' . _config
 
 
 db :: Node -> (Connection -> a -> IO b) -> a -> IO b

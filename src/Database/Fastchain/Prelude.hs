@@ -1,14 +1,5 @@
 module Database.Fastchain.Prelude
-  ( module AEQ
-  , module BSL
-  , module CM
-  , module DPS
-  , module DTE
-  , module Data.Maybe
-  , module LM
-  , module Map
-  , module MIC
-  , module SL
+  ( module SL
   , module ALL
   , ByteString
   , Text
@@ -17,28 +8,33 @@ module Database.Fastchain.Prelude
   -- local
   , request
   , push
+  , Effectful
+  , eff
+  , eff1
+  , runEffects
   ) where
 
 import Control.Concurrent as ALL
-import Control.Monad as CM
-import Control.Monad.IO.Class as MIC
+import Control.Monad as ALL
+import Control.Monad.IO.Class as ALL
 import Control.Monad.Trans.Class
+import Control.Monad.Trans.Reader as ALL
 
-import Data.Aeson.Quick as AEQ hiding (json)
-import Data.ByteString.Lazy as BSL (toStrict, fromStrict)
+import Data.Aeson.Quick as ALL hiding (decode, json)
+import Data.ByteString.Lazy as ALL (toStrict, fromStrict)
 import Data.ByteString as BS
 import Data.Int as ALL
-import Data.Map.Strict as Map (Map, fromList, toList)
-import Data.Maybe
+import Data.Map.Strict as ALL (Map, fromList, toList)
+import Data.Maybe as ALL
 import Data.Monoid
 import Data.Set as ALL (Set)
 import Data.Text
-import Data.Text.Encoding as DTE (encodeUtf8, decodeUtf8)
+import Data.Text.Encoding as ALL (encodeUtf8, decodeUtf8)
 import Data.Time.Clock as ALL
 
-import Database.PostgreSQL.Simple as DPS hiding (connect)
+import Database.PostgreSQL.Simple as ALL hiding (Binary(..), connect)
 
-import Lens.Micro as LM
+import Lens.Micro as ALL
 import Lens.Micro.Platform as ALL ()
 
 import System.Log.Logger as SL
@@ -59,3 +55,18 @@ request node part = liftIO $ do
 
 push :: MonadIO m => MVar a -> a -> m ()
 push n = liftIO . putMVar n
+
+
+--------------------------------------------------------------------------------
+-- Effect helpers
+
+type Effectful a m = ReaderT (a m) m
+
+eff :: Monad m => (a -> ReaderT a m b) -> ReaderT a m b
+eff f = ask >>= f
+
+eff1 :: Monad m => (a -> c -> ReaderT a m b) -> c -> ReaderT a m b
+eff1 f a = ask >>= flip f a
+
+runEffects :: Effectful a m b -> a m -> m b
+runEffects = runReaderT
