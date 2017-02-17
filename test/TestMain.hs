@@ -13,13 +13,11 @@ import Database.Fastchain.Prelude
 import Database.Fastchain.Schema
 import Database.Fastchain.Types
 
-import TestChainify
 import TestCommon
 
 
 main :: IO ()
 main = defaultMain $ testGroup "Tests" [ dbTests
-                                       , testChainify
                                        ]
 
 

@@ -1,9 +1,10 @@
-module Database.Fastchain.Chain2 where
+module Database.Fastchain.Chain where
 
 import Data.Binary
 import Data.List (sortOn)
 
 import Database.Fastchain.Crypto
+import Database.Fastchain.Hub
 import Database.Fastchain.Prelude
 import Database.Fastchain.Types
 
@@ -20,7 +21,7 @@ data ChainEffects m = ChainEffects
   }
 
 
-ioChainEffects :: Node -> ChainEffects IO
+ioChainEffects :: HubInterface -> ChainEffects IO
 ioChainEffects node =
   ChainEffects
     (lift . putMVar (_router node) . ConsiderTx)
@@ -45,7 +46,6 @@ runChainifyIO node = do
           pure mvar
 
 
-type ITX = ((UTCTime, Transaction), Signature)
 type QueueHead = (Maybe ITX, (PublicKey, MVar ITX))
 
 

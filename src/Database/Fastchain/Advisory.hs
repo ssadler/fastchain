@@ -1,26 +1,24 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Database.Fastchain.Node
-  ( runNode
+module Database.Fastchain.Advisory
+  ( runAdvisory
   ) where
 
 import Control.Concurrent
 
 import qualified Data.Binary as B
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 import Data.Time
 
 import Database.Fastchain.Chain
 import Database.Fastchain.Crypto
--- import Database.Fastchain.Http
 import Database.Fastchain.Logging
 import Database.Fastchain.Prelude
 import Database.Fastchain.Schema
 import Database.Fastchain.Types
 
 import qualified System.ZMQ4 as Z
-
-import qualified Data.Text as T
 
 
 data Actions m = Actions
@@ -41,8 +39,8 @@ ioActions node =
           (db node insertTxs . (:[]))
 
 
-runNode :: Node -> IO ()
-runNode node = do
+runAdvisory :: Node -> IO ()
+runAdvisory node = do
   --forkIO $ runHttp node
   forkIO $ runChainify node
   let actions = ioActions node

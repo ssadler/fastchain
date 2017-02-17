@@ -40,37 +40,37 @@ executable fastchain
                      , zeromq4-haskell
   other-modules:       Database.Fastchain.Crypto
                        Database.Fastchain.Http
-                       Database.Fastchain.Node
+                       Database.Fastchain.Logging
                        Database.Fastchain.Prelude
                        Database.Fastchain.Schema
                        Database.Fastchain.Types
   default-language:    Haskell2010
 
-test-suite testss
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      src, test
-  main-is:             TestMain.hs
-  build-depends:       base
-                     , aeson
-                     , aeson-quick
-                     , base16-bytestring
-                     , bytestring
-                     , cryptonite
-                     , containers
-                     , http-conduit
-                     , hslogger
-                     , memory
-                     , microlens
-                     , microlens-platform
-                     , postgresql-simple
-                     , scotty
-                     , text
-                     , time
-                     , transformers
-                     , tasty
-                     , tasty-hunit
-  ghc-options:         -O0
-  default-language:    Haskell2010
+--test-suite testss
+--  type:                exitcode-stdio-1.0
+--  hs-source-dirs:      src, test
+--  main-is:             TestMain.hs
+--  build-depends:       base
+--                     , aeson
+--                     , aeson-quick
+--                     , base16-bytestring
+--                     , bytestring
+--                     , cryptonite
+--                     , containers
+--                     , http-conduit
+--                     , hslogger
+--                     , memory
+--                     , microlens
+--                     , microlens-platform
+--                     , postgresql-simple
+--                     , scotty
+--                     , text
+--                     , time
+--                     , transformers
+--                     , tasty
+--                     , tasty-hunit
+--  ghc-options:         -O0
+--  default-language:    Haskell2010
 
 source-repository head
   type:     git

@@ -69,6 +69,7 @@ instance FromRow Transaction where
   fromRow = Tx <$> field <*> (fromPGArray <$> field)
 
 type STX = (UTCTime, Transaction)
+type ITX = (STX, Signature)
 
 
 --------------------------------------------------------------------------------
@@ -94,12 +95,13 @@ data Node = Node
 type SigMap = Map PublicKey Signature
 
 data NodeQuery =
-    PushTx Transaction
-  | ConsiderTx [(STX,Signature)]
+    ClientTx Transaction
+  | AdviseTx STX
+  | IncludeTx [ITX]
 
 data BroadcastMessage =
-    TxAdvisory STX Signature
-  | TxInclusion STX Signature
+    TxAdvisory STX
+  | TxInclusion ITX
   deriving (Generic)
 
 instance Binary BroadcastMessage
