@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Database.Fastchain.Types where
 
@@ -118,3 +119,8 @@ instance ToJSON Config where
 instance FromJSON Config
 
 
+--------------------------------------------------------------------------------
+-- Orphans
+
+instance Show (Chan a) where
+  show _ = "Chan ?"

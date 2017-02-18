@@ -1,37 +1,64 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module TestCommon where
+module TestCommon
+  ( module ALL
+  , now
+  , mkTxid
+  , mkStx
+  , mkItx
+  , mkTestNode
+  , testEffects
+  ) where
+
+import Control.Monad.Trans.State as ALL
 
 import Database.Fastchain.Crypto
 import Database.Fastchain.Prelude
 import Database.Fastchain.Schema
 import Database.Fastchain.Types
 
-import qualified Data.Text as T
-
 import System.IO.Unsafe
 
 
-mkTxid :: Int -> Txid
-mkTxid = T.pack . show
-  
+--------------------------------------------------------------------------------
+-- Test Effects
+
+
+testEffects :: Effectful ef (State s) a -> ef (State s) -> s -> (a, s)
+testEffects act effects = runState $ runEffects act effects
+
+
+--------------------------------------------------------------------------------
+--
+
 
 now :: UTCTime
 now = unsafePerformIO getCurrentTime
 
 
-stx :: Int -> STX
-stx n = (addUTCTime (realToFrac $ n * 3600) now,
-         Tx (mkTxid n) [mkTxid $ n+1])
+mkTxid :: Int -> Txid
+mkTxid = Txid . c8Pack . show
+
+
+mkStx :: Int -> STX
+mkStx n =
+  let t = addUTCTime (realToFrac $ n * 3600) now
+      tx = Tx (mkTxid n) [mkTxid $ n+1]
+   in (t, tx)
+
+
+mkItx :: Int -> ITX
+mkItx n =
+  let kp = genKeyPairSeed n
+      stx@(_, Tx (Txid txid) _) = mkStx n
+   in (stx,sign kp txid)
 
 
 mkTestNode :: IO Node
 mkTestNode = do
-  let (p, s) = genKeyPairSeed 10000
+  let keyPair = genKeyPairSeed 10000
       dsn = "dbname=fastchaintest"
-  server <- newEmptyMVar
-  peers <- newMVar mempty
-  backlog <- newMVar mempty
-  let node = Node dsn 5000 server p s peers backlog
+      conf = Config keyPair [] dsn
+  node <- Node conf <$> newEmptyMVar <*> newMVar mempty
   db_ node createSchema
   pure node

@@ -14,10 +14,12 @@ import Database.Fastchain.Schema
 import Database.Fastchain.Types
 
 import TestCommon
+import TestZip
 
 
 main :: IO ()
 main = defaultMain $ testGroup "Tests" [ dbTests
+                                       , zipTests
                                        ]
 
 
@@ -43,5 +45,5 @@ dbTests = testGroup "dbTests" [
 dbSetup :: Int -> IO Node
 dbSetup ntxs = do
   node <- mkTestNode
-  db node insertTxs $ stx <$> [0..ntxs-1]
+  db node insertTxs $ mkStx <$> [0..ntxs-1]
   pure node

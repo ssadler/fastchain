@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-deprecations #-}
+
 module Database.Fastchain.Zip where
 
 import Data.List (sortOn)
@@ -6,27 +8,35 @@ import Database.Fastchain.Crypto
 import Database.Fastchain.Prelude
 import Database.Fastchain.Types
 
+
 type Zip m = Effectful ZipEffects m
-type Feed = (PublicKey, Chan ITX)
-type QueueHead = (Maybe ITX, Feed)
+
+
+data QueueHead = QH
+  { _mitx :: Maybe ITX
+  , _pk :: PublicKey
+  , _chan :: Chan ITX
+  } deriving (Eq, Show)
 
 
 data ZipEffects m = ZipEffects
   { yieldTx' :: (STX, SigMap) -> Zip m ()
   , delay' :: Int -> Zip m ()
-  , updateHead' :: Feed -> Zip m QueueHead
+  , updateHead' :: QueueHead -> Zip m QueueHead
+  , zipify' :: [QueueHead] -> Zip m ()
   }
 
 
-runZipIO :: MVar NodeQuery -> [Feed] -> IO ()
+runZipIO :: MVar NodeQuery -> [(PublicKey, Chan ITX)] -> IO ()
 runZipIO hub feeds =
-  let heads = (,) Nothing <$> feeds
+  let heads = uncurry (QH Nothing) <$> feeds
   in runEffects (zipify heads) effects
   where
   effects = ZipEffects
     (lift . putMVar hub . CheckAgreeTx)
     (lift . threadDelay)
-    (\(pk,chan) -> (,) <$> tryReadChan chan <*> pure (pk,chan))
+    (\(QH _ pk chan) -> QH <$> tryReadChan chan <*> pure pk <*> pure chan)
+    zipify
   tryReadChan chan = lift $ do
     empty <- isEmptyChan chan
     if empty then pure Nothing
@@ -35,8 +45,8 @@ runZipIO hub feeds =
 
 zipify :: Monad m => [QueueHead] -> Zip m ()
 zipify heads = do
-  let (nothings,mrest) = span (isNothing . fst) heads
-      stxs@((stx,_):_) = [(s,(pk,sig)) | (Just (s,sig), (pk,_)) <- mrest]
+  let (nothings,mrest) = span (isNothing . _mitx) heads
+      stxs@((stx,_):_) = [(s,(pk,sig)) | (QH (Just (s,sig)) pk _) <- mrest]
       agree = takeWhile ((==stx) . fst) stxs
       nAgree = if null mrest then 0 else length agree
 
@@ -44,11 +54,11 @@ zipify heads = do
      then eff1 delay' 10000
      else eff1 yieldTx' (stx,snd <$> agree)
 
-  let toUpdate = map snd $ nothings ++ take nAgree mrest
+  let toUpdate = nothings ++ take nAgree mrest
   updated <- mapM (eff1 updateHead') toUpdate
   let newHeads = updated ++ drop nAgree mrest :: [QueueHead]
-  zipify $ sortOn actionable newHeads
+  eff1 zipify' $ sortActionable newHeads
 
 
-actionable :: QueueHead -> Maybe STX
-actionable = fmap fst . fst
+sortActionable :: [QueueHead] -> [QueueHead]
+sortActionable = sortOn (fmap fst . _mitx)

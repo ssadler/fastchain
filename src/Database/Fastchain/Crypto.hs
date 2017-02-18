@@ -51,7 +51,7 @@ instance Show SecretKey where
 
 
 data Signature = Sig Ed2.Signature
-  deriving (Show)
+  deriving (Eq, Show)
 
 instance Binary Signature where
   put (Sig sig) = put $ BA.unpack sig
