@@ -12,7 +12,7 @@ type QueueHead = (Maybe ITX, Feed)
 
 
 data ZipEffects m = ZipEffects
-  { yieldTx' :: [ITX] -> Zip m ()
+  { yieldTx' :: (STX, SigMap) -> Zip m ()
   , delay' :: Int -> Zip m ()
   , updateHead' :: Feed -> Zip m QueueHead
   }
@@ -36,13 +36,13 @@ runZipIO hub feeds =
 zipify :: Monad m => [QueueHead] -> Zip m ()
 zipify heads = do
   let (nothings,mrest) = span (isNothing . fst) heads
-      rest@((stx,_):_) = fromJust . fst <$> mrest
-      agree = takeWhile ((==stx) . fst) rest
+      stxs@((stx,_):_) = [(s,(pk,sig)) | (Just (s,sig), (pk,_)) <- mrest]
+      agree = takeWhile ((==stx) . fst) stxs
       nAgree = if null mrest then 0 else length agree
 
   if nAgree == 0
      then eff1 delay' 10000
-     else eff1 yieldTx' agree
+     else eff1 yieldTx' (stx,snd <$> agree)
 
   let toUpdate = map snd $ nothings ++ take nAgree mrest
   updated <- mapM (eff1 updateHead') toUpdate

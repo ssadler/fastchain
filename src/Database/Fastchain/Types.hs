@@ -73,14 +73,7 @@ type ITX = (STX, Signature)
 --------------------------------------------------------------------------------
 -- Node
 
-
-type PeerId = PublicKey
-
-type Peers = Map PeerId Server
-
 type Backlog = Map UTCTime Transaction
-
-type Server = MVar NodeQuery
 
 data Node = Node
   { _config  :: Config
@@ -89,7 +82,7 @@ data Node = Node
   }
 
 
-type SigMap = Map PublicKey Signature
+type SigMap = [(PublicKey, Signature)]
 
 data NodeQuery =
     ClientTx Transaction
@@ -98,8 +91,8 @@ data NodeQuery =
   -- Transaction comes out of backlog, time to sign and broadcast
   | MatureTx STX
   -- Transaction pending validation
-  | CheckAgreeTx [ITX]
-               deriving (Show)
+  | CheckAgreeTx (STX, SigMap)
+  deriving (Show)
 
 data BroadcastMessage =
     TxAdvisory STX
@@ -114,7 +107,7 @@ instance Binary BroadcastMessage
 
 data Config = Config
   { keyPair' :: KeyPair
-  , peers' :: Map PublicKey String
+  , peers' :: [(PublicKey,String)]
   , dsn' :: String
   } deriving (Generic, Show)
 

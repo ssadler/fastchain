@@ -25,10 +25,10 @@ runNode (Node conf hub backlog) bcast = forever $ do
          let sig = sign (keyPair' conf) txid
          bcast $ TxInclusion (stx,sig)
        CheckAgreeTx itxs -> do
-         if elect itxs
+         if elect conf itxs
             then print "yay"
             else print "noelect"
 
 
-elect :: [(STX, Signature)] -> Bool
-elect _ = False
+elect :: Config -> (STX, SigMap) -> Bool
+elect _ = (>0) . length . snd

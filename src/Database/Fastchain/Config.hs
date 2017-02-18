@@ -5,12 +5,9 @@ module Database.Fastchain.Config where
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BL
 
-import GHC.Generics
-
 import System.Directory
 
 import Database.Fastchain.Crypto
-import Database.Fastchain.Prelude
 import Database.Fastchain.Types
 
 

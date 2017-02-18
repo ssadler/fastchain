@@ -24,7 +24,7 @@ withHub (Config (me,_) peers _) act = do
   withContext $ \ctx -> do
     withSocket ctx Pub $ \pub -> do
       let addr = "inproc://hello"
-          peersAndMe = (me,addr) : toList peers
+          peersAndMe = (me,addr) : peers
       bind pub addr
       feeds <- traverseOf (each . _2) (toPeerFeed ctx hub) peersAndMe
       let broadcast = send' pub [] . encode
