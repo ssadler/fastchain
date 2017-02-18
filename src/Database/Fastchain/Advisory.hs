@@ -11,7 +11,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import Data.Time
 
-import Database.Fastchain.Chain
 import Database.Fastchain.Crypto
 import Database.Fastchain.Logging
 import Database.Fastchain.Prelude

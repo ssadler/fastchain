@@ -2,36 +2,40 @@
 
 module Main where
 
-import Control.Concurrent
-
-import Data.String
-
-import Database.Fastchain.Advisory
+import Database.Fastchain.Backlog
 import Database.Fastchain.Config
 import Database.Fastchain.Crypto
 import Database.Fastchain.Hub
+import Database.Fastchain.Node
 import Database.Fastchain.Prelude
 import Database.Fastchain.Schema
 import Database.Fastchain.Types
-
-import Network.HTTP.Simple
-
-import System.IO
-import System.ZMQ4
+import Database.Fastchain.Zip
 
 
 main :: IO ()
 main = do
-  setupLogging
   config <- loadConfig
-  withNode config runNode
+  withHub config $ \(HubInterface hub feeds broadcast) -> do
+    node <- makeNode config hub
+    db_ node createSchema
+    forkIO $ runZipIO hub feeds
+    forkIO $ runBacklog node
+    forkIO $ runNode node broadcast
+
+    let postTxs txid = do
+          putMVar (_hub node) $ ClientTx $ Tx (Txid txid) []
+          threadDelay 1000000
+          postTxs $ sha3 txid
+
+    postTxs $ sha3 ""
 
 
-setupLogging :: IO ()
-setupLogging = do
-  let fmt = tfLogFormatter "%T" "$loggername \t$msg"
-  h <- flip setFormatter fmt <$> streamHandler stderr DEBUG
-  updateGlobalLogger "" $ setLevel DEBUG . setHandlers [h]
+--setupLogging :: IO ()
+--setupLogging = do
+--  let fmt = tfLogFormatter "%T" "$loggername \t$msg"
+--  h <- flip setFormatter fmt <$> streamHandler stderr DEBUG
+--  updateGlobalLogger "" $ setLevel DEBUG . setHandlers [h]
 
 
 --runClient :: String -> IO ()

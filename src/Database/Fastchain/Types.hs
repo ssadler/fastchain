@@ -17,8 +17,6 @@ import GHC.Generics
 import Database.Fastchain.Crypto
 import Database.Fastchain.Prelude
 
-import System.ZMQ4
-
 
 --------------------------------------------------------------------------------
 -- Txid
@@ -86,9 +84,8 @@ type Server = MVar NodeQuery
 
 data Node = Node
   { _config  :: Config
-  , _pubSock :: Socket Pub
-  , _router  :: MVar NodeQuery
-  , _peers   :: Map PublicKey (Socket Sub)
+  , _hub     :: MVar NodeQuery
+  , _backlog :: MVar Backlog
   }
 
 
@@ -96,8 +93,13 @@ type SigMap = Map PublicKey Signature
 
 data NodeQuery =
     ClientTx Transaction
+  -- Get a new transaction from a node, put into backlog
   | AdviseTx STX
-  | IncludeTx [ITX]
+  -- Transaction comes out of backlog, time to sign and broadcast
+  | MatureTx STX
+  -- Transaction pending validation
+  | CheckAgreeTx [ITX]
+               deriving (Show)
 
 data BroadcastMessage =
     TxAdvisory STX

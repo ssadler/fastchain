@@ -85,8 +85,8 @@ fromKey (CryptoFailed e) = fail $ show e
 --------------------------------------------------------------------------------
 -- Crypto Function wrappers
 
-sign :: SecretKey -> PublicKey -> ByteString -> Signature
-sign (SK sk) (PK pk) = Sig . Ed2.sign sk pk
+sign :: KeyPair -> ByteString -> Signature
+sign ((PK pk),(SK sk)) = Sig . Ed2.sign sk pk
 
 
 verify :: ByteArrayAccess ba => PublicKey -> ba -> Signature -> Bool
