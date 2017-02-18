@@ -8,6 +8,7 @@ module TestCommon
   , mkItx
   , mkTestNode
   , testEffects
+  , unsafePerformIO
   ) where
 
 import Control.Monad.Trans.State as ALL

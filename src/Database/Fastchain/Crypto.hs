@@ -13,7 +13,7 @@ import Data.Aeson
 import Data.Aeson.Types (Parser)
 import Data.Binary
 import Data.ByteArray as BA
-import Data.ByteString as BS (ByteString, take)
+import Data.ByteString as BS
 import Data.ByteString.Base16 as B16
 import qualified Data.Map.Strict as Map
 
@@ -21,7 +21,10 @@ import Database.Fastchain.Prelude
 
 
 data PublicKey = PK Ed2.PublicKey
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show PublicKey where
+  show (PK s) = "PK " ++ (show $ toTextKey s)
 
 instance Ord PublicKey where
   compare a b = compare (show a) (show b)
@@ -51,7 +54,10 @@ instance Show SecretKey where
 
 
 data Signature = Sig Ed2.Signature
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show Signature where
+  show (Sig s) = "Sig " ++ (Prelude.take 11 $ show $ toTextKey s) ++ "...\""
 
 instance Binary Signature where
   put (Sig sig) = put $ BA.unpack sig
@@ -63,7 +69,7 @@ type KeyPair = (PublicKey, SecretKey)
 
 
 toTextKey :: ByteArrayAccess a => a -> Text
-toTextKey = decodeUtf8 . B16.encode . pack . BA.unpack
+toTextKey = decodeUtf8 . B16.encode . BA.pack . BA.unpack
 
 
 toJSONKey :: ByteArrayAccess a => a -> Value
@@ -109,4 +115,4 @@ _genKeyPair drg =
 
 
 sha3 :: ByteString -> ByteString
-sha3 bs = BS.take 16 $ B16.encode $ pack $ BA.unpack (hash bs :: Digest SHA3_256)
+sha3 bs = BS.take 16 $ B16.encode $ BA.pack $ BA.unpack (hash bs :: Digest SHA3_256)

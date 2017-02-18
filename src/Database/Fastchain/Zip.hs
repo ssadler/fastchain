@@ -21,7 +21,7 @@ data QueueHead = QH
 
 data ZipEffects m = ZipEffects
   { yieldTx' :: (STX, SigMap) -> Zip m ()
-  , delay' :: Int -> Zip m ()
+  , delay' :: Zip m ()
   , updateHead' :: QueueHead -> Zip m QueueHead
   , zipify' :: [QueueHead] -> Zip m ()
   }
@@ -34,7 +34,7 @@ runZipIO hub feeds =
   where
   effects = ZipEffects
     (lift . putMVar hub . CheckAgreeTx)
-    (lift . threadDelay)
+    (lift $ threadDelay 10000)
     (\(QH _ pk chan) -> QH <$> tryReadChan chan <*> pure pk <*> pure chan)
     zipify
   tryReadChan chan = lift $ do
@@ -51,12 +51,12 @@ zipify heads = do
       nAgree = if null mrest then 0 else length agree
 
   if nAgree == 0
-     then eff1 delay' 10000
+     then eff delay'
      else eff1 yieldTx' (stx,snd <$> agree)
 
   let toUpdate = nothings ++ take nAgree mrest
-  updated <- mapM (eff1 updateHead') toUpdate
-  let newHeads = updated ++ drop nAgree mrest :: [QueueHead]
+  updated <- forM toUpdate $ eff1 updateHead'
+  let newHeads = updated ++ drop nAgree mrest
   eff1 zipify' $ sortActionable newHeads
 
 
