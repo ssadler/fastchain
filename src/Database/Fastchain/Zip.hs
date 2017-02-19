@@ -1,4 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Database.Fastchain.Zip where
 
@@ -6,39 +8,86 @@ import Database.Fastchain.Crypto
 import Database.Fastchain.Prelude
 import Database.Fastchain.Types
 
+import Data.Binary
+import qualified Data.ByteString as BS
+import Data.List (partition)
+
+import System.IO.Unsafe
+import System.ZMQ4 hiding (Subscriber)
+
+import Debug.Trace
 
 type Zip m = Effectful ZipEffects m
+
+instance Show (Socket Sub) where
+  show = ('#':) . show . unsafePerformIO . fileDescriptor
+
+instance Eq (Socket Sub) where
+  s == s' = let fd = unsafePerformIO . fileDescriptor
+             in fd s == fd s'
 
 
 data QueueHead = QH
   { _mitx :: Maybe ITX
   , _pk :: PublicKey
-  , _chan :: Chan ITX
+  , _sock :: Socket Sub
   } deriving (Eq, Show)
 
 
 data ZipEffects m = ZipEffects
   { yieldTx' :: (STX, SigMap) -> Zip m ()
   , delay' :: Zip m ()
-  , updateHead' :: QueueHead -> Zip m QueueHead
+  , poll' :: Int64 -> [Socket Sub] -> Zip m [[Event]]
+  , receive' :: Socket Sub -> Zip m ByteString
   , zipify' :: [QueueHead] -> Zip m ()
+  , getCurrentTime' :: Zip m UTCTime
+  , updateHeads' :: [QueueHead] -> Zip m [QueueHead]
   }
 
 
-runZipIO :: MVar NodeQuery -> [(PublicKey, Chan ITX)] -> IO ()
+runZipIO :: MVar NodeQuery -> [(PublicKey, Socket Sub)] -> IO ()
 runZipIO hub feeds =
-  let heads = uncurry (QH Nothing) <$> feeds
+  let heads = [QH Nothing pk s | (pk,s) <- feeds]
   in runEffects (zipify heads) effects
   where
   effects = ZipEffects
     (lift . putMVar hub . CheckAgreeTx)
-    (lift $ threadDelay 10000)
-    (\(QH _ pk chan) -> QH <$> tryReadChan chan <*> pure pk <*> pure chan)
+    (lift $ threadDelay 10001)
+    (\a b -> lift $ pollIO a b)
+    (lift . receive)
     zipify
-  tryReadChan chan = lift $ do
-    empty <- isEmptyChan chan
-    if empty then pure Nothing
-             else Just <$> readChan chan
+    (lift getCurrentTime)
+    updateHeads
+  pollIO us socks = poll us $ (\s -> Sock s [In,Err] Nothing) <$> socks
+
+
+updateHeads :: Monad m => [QueueHead] -> Zip m [QueueHead]
+updateHeads oldHeads = do
+  maxtime <- addUTCTime 1 <$> eff getCurrentTime'
+  let pollMore heads = do
+        t <- eff getCurrentTime'
+        let d = diffUTCTime maxtime t
+            us = traceShowId $ round (d * 1000000)
+        if us <= 0
+           then pure heads
+           else do
+             let socks = _sock <$> heads
+             results <- zip heads <$> eff2 poll' us socks
+             newHeads <- forM results (uncurry updateHead)
+             let (done,need) = partition (isJust . _mitx) newHeads
+             if null need then pure done
+                          else (done++) <$> pollMore need
+  pollMore [qh {_mitx = Nothing} | qh <- oldHeads]
+
+
+updateHead :: Monad m => QueueHead -> [Event] -> Zip m QueueHead
+updateHead qh [] = pure qh
+updateHead qh [In] = do
+  bs <- eff1 receive' $ _sock qh
+  let itx = decode $ fromStrict $ BS.drop 1 bs
+  pure qh {_mitx = Just itx}
+updateHead qh xs = do
+  traceShow xs $ pure qh
 
 
 zipify :: Monad m => [QueueHead] -> Zip m ()
@@ -53,7 +102,7 @@ zipify heads = do
      else eff1 yieldTx' (stx,snd <$> agree)
 
   let toUpdate = nothings ++ take nAgree mrest
-  updated <- forM toUpdate $ eff1 updateHead'
+  updated <- eff1 updateHeads' toUpdate
   let newHeads = updated ++ drop nAgree mrest
   eff1 zipify' $ sortActionable newHeads
 

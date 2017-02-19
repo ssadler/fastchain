@@ -95,6 +95,7 @@ data NodeQuery =
   | CheckAgreeTx (STX, SigMap)
   deriving (Show)
 
+
 data BroadcastMessage =
     TxAdvisory STX
   | TxInclusion ITX

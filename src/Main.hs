@@ -14,6 +14,8 @@ import Database.Fastchain.Zip
 
 import Options.Applicative
 
+import System.Remote.Monitoring
+
 
 main :: IO ()
 main = do
@@ -24,6 +26,8 @@ main = do
       parse = info (helper <*> args) mempty
 
   (configPath, startClient) <- execParser parse
+
+  -- forkServer "localhost" 18090
 
   config <- loadConfig configPath
   withHub config $ \(HubInterface hub feeds broadcast) -> do

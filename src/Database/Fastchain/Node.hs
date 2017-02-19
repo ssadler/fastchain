@@ -27,7 +27,7 @@ runNode (Node conf hub backlog) bcast = forever $ do
        CheckAgreeTx (stx,sm) -> do
          if elect conf (stx,sm)
             then print (stx, length sm)
-            else print "noelect"
+            else print "nooelect"
 
 
 elect :: Config -> (STX, SigMap) -> Bool

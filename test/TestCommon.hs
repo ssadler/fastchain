@@ -59,7 +59,7 @@ mkTestNode :: IO Node
 mkTestNode = do
   let keyPair = genKeyPairSeed 10000
       dsn = "dbname=fastchaintest"
-      conf = Config keyPair [] dsn
+      conf = Config keyPair [] 50001 dsn
   node <- Node conf <$> newEmptyMVar <*> newMVar mempty
   db_ node createSchema
   pure node

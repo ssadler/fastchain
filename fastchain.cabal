@@ -16,7 +16,7 @@ cabal-version:       >=1.10
 executable fastchain
   hs-source-dirs:      src
   main-is:             Main.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -with-rtsopts=-T
   build-depends:       base
                      , aeson
                      , aeson-quick
@@ -41,6 +41,7 @@ executable fastchain
                      , time
                      , transformers
                      , zeromq4-haskell
+                     , ekg
   other-modules:       Database.Fastchain.Crypto
                        Database.Fastchain.Http
                        Database.Fastchain.Config

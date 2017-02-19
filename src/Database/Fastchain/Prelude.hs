@@ -12,11 +12,11 @@ module Database.Fastchain.Prelude
   , Effectful
   , eff
   , eff1
+  , eff2
   , runEffects
-  , forkIO
   ) where
 
-import Control.Concurrent as ALL hiding (forkIO)
+import Control.Concurrent as ALL
 import Control.Monad as ALL
 import Control.Monad.IO.Class as ALL
 import Control.Monad.Trans.Class
@@ -36,12 +36,10 @@ import Data.Text
 import Data.Text.Encoding as ALL (encodeUtf8, decodeUtf8)
 import Data.Time.Clock as ALL
 
-import Database.PostgreSQL.Simple as ALL hiding (Binary(..), connect)
+import Database.PostgreSQL.Simple as ALL hiding (Binary(..), In(..), connect)
 
 import Lens.Micro as ALL
 import Lens.Micro.Platform as ALL ()
-
-import SlaveThread
 
 import System.Log.Logger as SL
 import System.Log.Handler as SL (setFormatter)
@@ -63,10 +61,6 @@ push :: MonadIO m => MVar a -> a -> m ()
 push n = liftIO . putMVar n
 
 
-forkIO :: IO a -> IO ThreadId
-forkIO = fork
-
-
 --------------------------------------------------------------------------------
 -- Effect helpers
 
@@ -77,6 +71,11 @@ eff f = ask >>= f
 
 eff1 :: Monad m => (a -> c -> ReaderT a m b) -> c -> ReaderT a m b
 eff1 f a = ask >>= flip f a
+
+eff2 :: Monad m => (a -> b -> c -> ReaderT a m d) -> b -> c -> ReaderT a m d
+eff2 f a b = do
+  e <- ask
+  f e a b
 
 runEffects :: Effectful a m b -> a m -> m b
 runEffects = runReaderT

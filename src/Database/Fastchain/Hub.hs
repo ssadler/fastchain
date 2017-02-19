@@ -4,16 +4,19 @@ module Database.Fastchain.Hub where
 
 import Data.Binary
 
+import qualified Data.ByteString as BS
+
 import Database.Fastchain.Crypto
 import Database.Fastchain.Prelude
 import Database.Fastchain.Types
 
 import System.ZMQ4
 
+import Debug.Trace
 
 data HubInterface = HubInterface 
   { _hhub :: MVar NodeQuery
-  , _feeds :: [(PublicKey, Chan ITX)]
+  , _peers :: [(PublicKey, Socket Sub)]
   , _broadcast :: BroadcastMessage -> IO ()
   }
 
@@ -24,25 +27,33 @@ withHub (Config (me,_) peers port _) act = do
   withContext $ \ctx -> do
     withSocket ctx Pub $ \pub -> do
       let peersAndMe = nub $ (me,port) : peers
-          addr = "tcp://127.0.0.1:" ++ show port
-      bind pub addr
-      feeds <- traverseOf (each . _2) (toPeerFeed ctx hub) peersAndMe
+      bind pub $ pubAddr port
+      traverseOf (each . _2) (forkCopyAdvisory ctx hub) peersAndMe
       let broadcast = send' pub [] . encode
-      act $ HubInterface hub feeds broadcast
+      withSubscribers ctx peersAndMe $ \subs ->
+        act $ HubInterface hub subs broadcast
 
 
-toPeerFeed :: Context -> MVar NodeQuery -> Int -> IO (Chan ITX)
-toPeerFeed ctx hub port = do
-  feed <- newChan
-  forkIO $
-    withSocket ctx Sub $ \sock -> do
-      let addr = "tcp://127.0.0.1:" ++ show port
-      print addr
-      connect sock addr
-      subscribe sock ""
-      forever $ do
-        bs <- fromStrict <$> receive sock
-        case decode bs of
-             TxAdvisory stx -> putMVar hub (AdviseTx stx)
-             TxInclusion itx -> writeChan feed itx
-  pure feed
+withSubscribers :: Context -> [(PublicKey, Int)] ->
+                   ([(PublicKey, Socket Sub)] -> IO a) -> IO a
+withSubscribers ctx peers act = mk peers []
+  where mk [] socks = act socks
+        mk ((pk,port):xs) socks =
+          withSocket ctx Sub $ \sock -> do
+            connect sock $ pubAddr port
+            subscribe sock "\1"
+            mk xs ((pk,sock):socks)
+
+
+forkCopyAdvisory :: Context -> MVar NodeQuery -> Int -> IO ThreadId
+forkCopyAdvisory ctx hub port = forkIO $
+  withSocket ctx Sub $ \sock -> do
+    connect sock $ pubAddr port
+    subscribe sock "\0"
+    forever $ do
+      bs <- fromStrict . BS.drop 1 <$> receive sock
+      putMVar hub $ AdviseTx $ decode bs
+
+
+pubAddr :: Int -> String
+pubAddr port = "tcp://127.0.0.1:" ++ show port
