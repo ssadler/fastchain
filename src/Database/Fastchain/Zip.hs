@@ -2,8 +2,6 @@
 
 module Database.Fastchain.Zip where
 
-import Data.List (sortOn)
-
 import Database.Fastchain.Crypto
 import Database.Fastchain.Prelude
 import Database.Fastchain.Types

@@ -20,6 +20,7 @@ executable fastchain
   build-depends:       base
                      , aeson
                      , aeson-quick
+                     , aeson-pretty
                      , base16-bytestring
                      , binary
                      , binary-orphans
@@ -32,6 +33,7 @@ executable fastchain
                      , memory
                      , microlens
                      , microlens-platform
+                     , optparse-applicative
                      , postgresql-simple
                      , scotty
                      , slave-thread
@@ -59,6 +61,7 @@ test-suite testss
   build-depends:       base
                      , aeson
                      , aeson-quick
+                     , aeson-pretty
                      , base16-bytestring
                      , binary
                      , binary-orphans
@@ -92,6 +95,7 @@ test-suite testss
                        Database.Fastchain.Types
                        TestChainify
                        TestCommon
+                       TestZip
   default-language:    Haskell2010
 
 source-repository head

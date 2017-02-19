@@ -14,7 +14,7 @@ import Database.Fastchain.Types
 
 
 dbConnect :: Node -> IO Connection
-dbConnect = connectPostgreSQL . C8.pack . dsn' . _config
+dbConnect = connectPostgreSQL . C8.pack . _dsn . _config
 
 
 db :: Node -> (Connection -> a -> IO b) -> a -> IO b

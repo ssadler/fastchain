@@ -27,6 +27,7 @@ import Data.ByteString.Lazy as ALL (toStrict, fromStrict)
 import Data.ByteString as BS
 import Data.ByteString.Char8 as C8
 import Data.Int as ALL
+import Data.List as ALL (nub, sortOn)
 import Data.Map.Strict as ALL (Map, fromList, toList)
 import Data.Maybe as ALL
 import Data.Monoid

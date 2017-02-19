@@ -107,9 +107,10 @@ instance Binary BroadcastMessage
 -- Config
 
 data Config = Config
-  { keyPair' :: KeyPair
-  , peers' :: [(PublicKey,String)]
-  , dsn' :: String
+  { _keyPair :: KeyPair
+  , _peers :: [(PublicKey,Int)]
+  , _port :: Int
+  , _dsn :: String
   } deriving (Generic, Show)
 
 

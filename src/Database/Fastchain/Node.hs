@@ -22,11 +22,11 @@ runNode (Node conf hub backlog) bcast = forever $ do
          -- TODO: validate within time bounds
          modifyMVar_ backlog $ pure . (& at t .~ Just tx)
        MatureTx stx@(_,Tx (Txid txid) _) -> do
-         let sig = sign (keyPair' conf) txid
+         let sig = sign (_keyPair conf) txid
          bcast $ TxInclusion (stx,sig)
-       CheckAgreeTx itxs -> do
-         if elect conf itxs
-            then print "yay"
+       CheckAgreeTx (stx,sm) -> do
+         if elect conf (stx,sm)
+            then print (stx, length sm)
             else print "noelect"
 
 
