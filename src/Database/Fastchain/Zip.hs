@@ -42,7 +42,12 @@ data ZipEffects m = ZipEffects
   , zipify' :: [QueueHead] -> Zip m ()
   , getCurrentTime' :: Zip m UTCTime
   , updateHeads' :: [QueueHead] -> Zip m [QueueHead]
+  , log' :: Priority -> String -> Zip m ()
   }
+
+instance Monad m => Logs (Zip m) where
+  getTime' = eff getCurrentTime'
+  logE = eff2 log'
 
 
 runZipIO :: MVar NodeQuery -> [(PublicKey, Socket Sub)] -> IO ()
@@ -58,30 +63,30 @@ runZipIO hub feeds =
     zipify
     (lift getCurrentTime)
     updateHeads
+    (\p m -> lift $ logM "zip" p m)
   pollIO us socks = poll us $ (\s -> Sock s [In,Err] Nothing) <$> socks
 
 
 updateHeads :: Monad m => [QueueHead] -> Zip m [QueueHead]
 updateHeads oldHeads = do
-  maxtime <- addUTCTime 1 <$> eff getCurrentTime'
+  maxtime <- addUTCTime 3 <$> eff getCurrentTime'
   let pollMore heads = do
-        t <- eff getCurrentTime'
-        let d = diffUTCTime maxtime t
-            us = traceShowId $ round (d * 1000000)
-        if us <= 0
+        d <- diffUTCTime maxtime <$> eff getCurrentTime'
+        let ms = round $ d * 1000
+        if ms <= 0
            then pure heads
            else do
              let socks = _sock <$> heads
-             results <- zip heads <$> eff2 poll' us socks
+             results <- zip heads <$> eff2 poll' ms socks
              newHeads <- forM results (uncurry updateHead)
              let (done,need) = partition (isJust . _mitx) newHeads
              if null need then pure done
                           else (done++) <$> pollMore need
-  pollMore [qh {_mitx = Nothing} | qh <- oldHeads]
+  pollMore oldHeads
 
 
 updateHead :: Monad m => QueueHead -> [Event] -> Zip m QueueHead
-updateHead qh [] = pure qh
+updateHead qh [] = pure qh {_mitx = Nothing}
 updateHead qh [In] = do
   bs <- eff1 receive' $ _sock qh
   let itx = decode $ fromStrict $ BS.drop 1 bs
@@ -97,6 +102,7 @@ zipify heads = do
       agree = takeWhile ((==stx) . fst) stxs
       nAgree = if null mrest then 0 else length agree
 
+  logE INFO $ "agree: " ++ (show nAgree)
   if nAgree == 0
      then eff delay'
      else eff1 yieldTx' (stx,snd <$> agree)

@@ -14,7 +14,8 @@ import Database.Fastchain.Zip
 
 import Options.Applicative
 
-import System.Remote.Monitoring
+import System.IO
+--import System.Remote.Monitoring
 
 
 main :: IO ()
@@ -26,6 +27,7 @@ main = do
       parse = info (helper <*> args) mempty
 
   (configPath, startClient) <- execParser parse
+  setupLogging
 
   -- forkServer "localhost" 18090
 
@@ -39,10 +41,16 @@ main = do
 
     let postTxs txid = do
           putMVar (_hub node) $ ClientTx $ Tx (Txid txid) []
-          threadDelay 1000000
+          threadDelay 100
           postTxs $ sha3 txid
 
     if startClient
        then postTxs $ sha3 ""
        else forever $ threadDelay 1000000
 
+
+setupLogging :: IO ()
+setupLogging = do
+  let fmt = tfLogFormatter "%T" "$loggername \t$msg"
+  h <- flip setFormatter fmt <$> streamHandler stderr DEBUG
+  updateGlobalLogger "" $ setLevel DEBUG . setHandlers [h]

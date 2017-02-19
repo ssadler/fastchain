@@ -14,6 +14,8 @@ module Database.Fastchain.Prelude
   , eff1
   , eff2
   , runEffects
+  , Logs(..)
+  , timed
   ) where
 
 import Control.Concurrent as ALL
@@ -79,6 +81,24 @@ eff2 f a b = do
 
 runEffects :: Effectful a m b -> a m -> m b
 runEffects = runReaderT
+
+
+--------------------------------------------------------------------------------
+-- Logging 
+
+class Monad m => Logs m where
+  logE :: Priority -> String -> m ()
+  getTime' :: m UTCTime
+
+
+timed :: Logs m => Priority -> String -> m a -> m a
+timed p s act = do
+  t <- getTime'
+  o <- act
+  diff <- (round . (*(-1000))) . diffUTCTime t <$> getTime'
+  logE p (s ++ " in " ++ show diff ++ "ms")
+  pure o
+
 
 
 --------------------------------------------------------------------------------
