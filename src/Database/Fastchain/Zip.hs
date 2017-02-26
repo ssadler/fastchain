@@ -50,13 +50,13 @@ instance Monad m => Logs (Zip m) where
   logE = eff2 log'
 
 
-runZipIO :: MVar NodeQuery -> [(PublicKey, Socket Sub)] -> IO ()
-runZipIO hub feeds =
+runZipIO :: [(PublicKey, Socket Sub)] -> ((STX,SigMap) -> IO ()) -> IO ()
+runZipIO feeds onSignedTx =
   let heads = [QH Nothing pk s | (pk,s) <- feeds]
   in runEffects (zipify heads) effects
   where
   effects = ZipEffects
-    (lift . putMVar hub . CheckAgreeTx)
+    (lift . onSignedTx)
     (lift $ threadDelay 10001)
     (\a b -> lift $ pollIO a b)
     (lift . receive)
@@ -102,7 +102,6 @@ zipify heads = do
       agree = takeWhile ((==stx) . fst) stxs
       nAgree = if null mrest then 0 else length agree
 
-  logE INFO $ "agree: " ++ (show nAgree)
   if nAgree == 0
      then eff delay'
      else eff1 yieldTx' (stx,snd <$> agree)

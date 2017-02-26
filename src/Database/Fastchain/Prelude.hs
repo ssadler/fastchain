@@ -16,25 +16,29 @@ module Database.Fastchain.Prelude
   , runEffects
   , Logs(..)
   , timed
+  , b58
+  , textPack
   ) where
 
-import Control.Concurrent as ALL
+import Control.Concurrent as ALL hiding (newChan, readChan, writeChan)
+import Control.Exception as ALL (catch)
 import Control.Monad as ALL
 import Control.Monad.IO.Class as ALL
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Reader as ALL
 
 import Data.Aeson.Quick as ALL hiding (encode, decode, json)
-import Data.ByteString.Lazy as ALL (toStrict, fromStrict)
 import Data.ByteString as BS
+import Data.ByteString.Lazy as ALL (toStrict, fromStrict)
 import Data.ByteString.Char8 as C8
+import Data.ByteString.Base58
 import Data.Int as ALL
 import Data.List as ALL (nub, sortOn)
 import Data.Map.Strict as ALL (Map, fromList, toList)
 import Data.Maybe as ALL
 import Data.Monoid
 import Data.Set as ALL (Set)
-import Data.Text
+import Data.Text as Text
 import Data.Text.Encoding as ALL (encodeUtf8, decodeUtf8)
 import Data.Time.Clock as ALL
 
@@ -90,6 +94,9 @@ class Monad m => Logs m where
   logE :: Priority -> String -> m ()
   getTime' :: m UTCTime
 
+instance Logs IO where
+  logE = logM "IO"
+  getTime' = getCurrentTime
 
 timed :: Logs m => Priority -> String -> m a -> m a
 timed p s act = do
@@ -106,3 +113,9 @@ timed p s act = do
 
 c8Pack :: String -> ByteString
 c8Pack = C8.pack
+
+textPack :: String -> Text
+textPack = Text.pack
+
+b58 :: ByteString -> ByteString
+b58 = encodeBase58 bitcoinAlphabet

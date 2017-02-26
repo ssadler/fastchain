@@ -3,6 +3,8 @@
 
 module Database.Fastchain.Schema where
 
+import Control.Monad.Trans.Except
+
 import qualified Data.ByteString.Char8 as C8
 
 import Database.PostgreSQL.Simple
@@ -11,6 +13,20 @@ import Database.PostgreSQL.Simple.Types
 import Database.Fastchain.Prelude
 import Database.Fastchain.Types
 
+import System.Process
+import System.Exit
+
+
+createAppDb :: Text -> Text -> ExceptT String IO ()
+createAppDb name' sql = do
+  let name = encodeUtf8 name'
+  (rc,_,err) <- lift $ readProcessWithExitCode "createdb" [C8.unpack name] ""
+  if rc == ExitSuccess
+     then lift $ do
+       conn <- connectPostgreSQL ("dbname=" <> name)
+       execute_ conn $ Query $ encodeUtf8 sql
+       pure ()
+     else throwE err
 
 
 dbConnect :: Node -> IO Connection
@@ -29,9 +45,8 @@ db_ node q = do
   q conn <* close conn
 
 
-dbSetup :: Connection -> IO ()
-dbSetup conn = do
+createSchema :: Connection -> IO ()
+createSchema conn = do
   C8.readFile "system.sql" >>= execute_ conn . Query
   pure ()
-
 

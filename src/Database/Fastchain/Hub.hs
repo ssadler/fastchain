@@ -8,30 +8,39 @@ import qualified Data.ByteString as BS
 
 import Database.Fastchain.Crypto
 import Database.Fastchain.Prelude
+import Database.Fastchain.Node
 import Database.Fastchain.Types
 
 import System.ZMQ4
 
-import Debug.Trace
 
-data HubInterface = HubInterface 
-  { _hhub :: MVar NodeQuery
-  , _peers :: [(PublicKey, Socket Sub)]
-  , _broadcast :: BroadcastMessage -> IO ()
-  }
+type Feeds = [(PublicKey, Socket Sub)]
 
 
-withHub :: Config -> (HubInterface -> IO a) -> IO a
-withHub (Config (me,_) peers port _) act = do
-  hub <- newEmptyMVar
+-- Hub
+-- Create subscription to each peer
+-- Create mvar to push broadcast over Pub
+-- For each peer, should create subscription to 
+withHub :: Node -> (Feeds -> IO a) -> IO a
+withHub node act = do
+  let (Config (me,_) peers port _) = _config node
+      onAdvisory = onAdviseTx node
   withContext $ \ctx -> do
-    withSocket ctx Pub $ \pub -> do
+    withBroadcast node ctx $ do
       let peersAndMe = nub $ (me,port) : peers
-      bind pub $ pubAddr port
-      traverseOf (each . _2) (forkCopyAdvisory ctx hub) peersAndMe
-      let broadcast = send' pub [] . encode
+      traverseOf (each . _2) (forkCopyAdvisory ctx onAdvisory) peersAndMe
       withSubscribers ctx peersAndMe $ \subs ->
-        act $ HubInterface hub subs broadcast
+        act subs
+
+
+withBroadcast :: Node -> Context -> IO a -> IO a
+withBroadcast node ctx act = do
+  let out = _broadcastOut node
+  withSocket ctx Pub $ \pub -> do
+    bind pub $ pubAddr $ _port $ _config node
+    forkIO $ forever $ do
+      takeMVar out >>= send' pub [] . encode
+    act
 
 
 withSubscribers :: Context -> [(PublicKey, Int)] ->
@@ -45,14 +54,14 @@ withSubscribers ctx peers act = mk peers []
             mk xs ((pk,sock):socks)
 
 
-forkCopyAdvisory :: Context -> MVar NodeQuery -> Int -> IO ThreadId
-forkCopyAdvisory ctx hub port = forkIO $
+forkCopyAdvisory :: Context -> (STX -> IO ()) -> Int -> IO ThreadId
+forkCopyAdvisory ctx onAdvisory port = forkIO $
   withSocket ctx Sub $ \sock -> do
     connect sock $ pubAddr port
     subscribe sock "\0"
     forever $ do
       bs <- fromStrict . BS.drop 1 <$> receive sock
-      putMVar hub $ AdviseTx $ decode bs
+      onAdvisory $ decode bs
 
 
 pubAddr :: Int -> String

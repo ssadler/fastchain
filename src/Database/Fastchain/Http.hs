@@ -4,30 +4,24 @@
 module Database.Fastchain.Http where
 
 import Database.Fastchain.Prelude
-import Database.Fastchain.Schema
+import Database.Fastchain.Node
 import Database.Fastchain.Types
 
-import Database.PostgreSQL.Simple (Connection)
+import Network.HTTP.Types.Status
+
 import Web.Scotty hiding (request)
 
 
 runHttp :: Node -> IO ()
-runHttp node = do
-  conn <- connectPostgreSQL (_dsn node)
-  runServer conn (_server node) (_httpPort node)
-
-
-runServer :: Connection -> Server -> Int -> IO ()
-runServer conn server = flip scotty $ do
+runHttp node = scotty 8500 $ do
   get "/transactions/" $ do
-    offset <- param "offset"
-    txs <- lift $ selectTxsFrom conn offset
-    json $ jsonTxsFrom .% (nextSeq txs, [tx | (_, tx) <- txs])
+    json $ jsonTxsFrom .% (True,False)
 
   post "/transactions/" $ do
-    tx <- (.! "{tx}") <$> jsonData
-    lift $ push server $ PushTx tx
-    json $ "{status}" .% ("ok"::Text)
+    tx <- jsonData
+    lift $ pushTx node tx
+    status accepted202
+    json $ "{status}" .% ("accepted"::Text)
 
 
 jsonTxsFrom :: Structure

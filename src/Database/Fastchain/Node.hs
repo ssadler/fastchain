@@ -2,33 +2,59 @@
 
 module Database.Fastchain.Node where
 
+import Control.Monad.Trans.Except
+
+import Database.Fastchain.App
 import Database.Fastchain.Crypto
 import Database.Fastchain.Prelude
 import Database.Fastchain.Types
 
 
-makeNode :: Config -> MVar NodeQuery -> IO Node
-makeNode c h = Node c h <$> newMVar mempty
+
+makeNode :: Config -> IO Node
+makeNode conf = do
+  mBroadcast <- newEmptyMVar
+  backlog <- newMVar mempty
+  let node = Node { _config = conf
+                  , _backlog = backlog
+                  , _broadcast = putMVar mBroadcast
+                  , _broadcastOut = mBroadcast
+                  }
+  pure node
 
 
-runNode :: Node -> (BroadcastMessage -> IO ()) -> IO ()
-runNode (Node conf hub backlog) bcast = forever $ do
-  msg <- takeMVar hub
-  case msg of
-       ClientTx tx -> do
-         t <- getCurrentTime
-         bcast $ TxAdvisory (t,tx)
-       AdviseTx (t,tx) -> do
-         -- TODO: validate within time bounds
-         modifyMVar_ backlog $ pure . (& at t .~ Just tx)
-       MatureTx stx@(_,Tx (Txid txid) _) -> do
-         let sig = sign (_keyPair conf) txid
-         bcast $ TxInclusion (stx,sig)
-       CheckAgreeTx (stx,sm) -> do
-         --if elect conf (stx,sm)
-         --   then print (stx, length sm)
-         --   else print "nooelect"
-         pure ()
+pushTx :: Node -> Transaction -> IO ()
+pushTx node tx = do
+   t <- getCurrentTime
+   _broadcast node $ TxAdvisory (t,tx)
+
+
+onAdviseTx :: Node -> STX -> IO ()
+onAdviseTx node (t,tx) = do
+  -- TODO: validate within time bounds
+  modifyMVar_ (_backlog node) $ pure . (& at t .~ Just tx)
+
+
+onMatureTx :: Node -> STX -> IO ()
+onMatureTx node stx@(_,tx) = do
+  let keyPair = _keyPair $ _config node
+      sig = sign keyPair $ encodeUtf8 $ _txid tx
+  _broadcast node $ TxInclusion (stx,sig)
+
+
+onVotedTx :: Node -> (STX, SigMap) -> IO ()
+onVotedTx node (stx,sm) = do
+  let needed = length $ _peers $ _config node
+  print $ length sm
+  print $ needed
+  if needed == length sm
+     then do
+       r <- runExceptT (runTx node stx)
+       case r of
+           Left err -> print err
+           Right _ -> pure ()
+     else do
+       print "dropped tx"
 
 
 elect :: Config -> (STX, SigMap) -> Bool

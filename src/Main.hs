@@ -2,10 +2,12 @@
 
 module Main where
 
+import Database.Fastchain.App
 import Database.Fastchain.Backlog
 import Database.Fastchain.Config
 import Database.Fastchain.Crypto
 import Database.Fastchain.Hub
+import Database.Fastchain.Http
 import Database.Fastchain.Node
 import Database.Fastchain.Prelude
 import Database.Fastchain.Schema
@@ -15,7 +17,6 @@ import Database.Fastchain.Zip
 import Options.Applicative
 
 import System.IO
---import System.Remote.Monitoring
 
 
 main :: IO ()
@@ -28,25 +29,18 @@ main = do
 
   (configPath, startClient) <- execParser parse
   setupLogging
+  node <- loadConfig configPath >>= makeNode
+  -- when startClient $ (forkIO $ testClient node 1000000) *> pure ()
+  db_ node dbSetup
+  runNode node
 
-  -- forkServer "localhost" 18090
 
-  config <- loadConfig configPath
-  withHub config $ \(HubInterface hub feeds broadcast) -> do
-    node <- makeNode config hub
-    db_ node createSchema
-    forkIO $ runZipIO hub feeds
+runNode :: Node -> IO ()
+runNode node = do
+  withHub node $ \feeds -> do
     forkIO $ runBacklog node
-    forkIO $ runNode node broadcast
-
-    let postTxs txid = do
-          putMVar (_hub node) $ ClientTx $ Tx (Txid txid) []
-          threadDelay 100
-          postTxs $ sha3 txid
-
-    if startClient
-       then postTxs $ sha3 ""
-       else forever $ threadDelay 1000000
+    forkIO $ runHttp node
+    runZipIO feeds $ onVotedTx node
 
 
 setupLogging :: IO ()

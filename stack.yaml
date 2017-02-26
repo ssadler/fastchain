@@ -24,6 +24,7 @@ packages:
 # (e.g., acme-missiles-0.3)
 extra-deps:
     - aeson-quick-0.1.1.2
+    - base58-bytestring-0.1.0
 
 # Override default flag values for local packages and extra-deps
 flags: {}

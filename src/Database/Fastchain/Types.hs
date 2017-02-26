@@ -4,51 +4,53 @@
 
 module Database.Fastchain.Types where
 
+import Data.Aeson.Types
 import Data.Binary.Orphans
-import qualified Data.ByteString.Base16 as B16
 
 import Database.PostgreSQL.Simple.ToRow
 import Database.PostgreSQL.Simple.FromRow
-import Database.PostgreSQL.Simple.FromField
 import Database.PostgreSQL.Simple.ToField
-import Database.PostgreSQL.Simple.Types hiding (Binary(..))
 
 import GHC.Generics
 
 import Database.Fastchain.Crypto
 import Database.Fastchain.Prelude
 
-
 --------------------------------------------------------------------------------
--- Txid
+-- App
 
-newtype Txid = Txid ByteString
-  deriving (Eq, Ord, Generic)
 
-instance Binary Txid
+type SQL = Text
+type Id = Text
 
-instance FromJSON Txid where
-  parseJSON val = Txid . fst . B16.decode . encodeUtf8 <$> parseJSON val
 
-instance ToJSON Txid where
-  toJSON (Txid bs) = toJSON $ decodeUtf8 $ B16.encode bs
+data Command =
+    CreateApp { _sql :: SQL, _name :: Text }
+  | CreateAsset { _app :: Id }
+  | Call { _proc :: Text, _asset :: Id, _body :: Value }
+  deriving (Eq, Generic, Show)
 
-instance ToField Txid where
-  toField (Txid t) = toField t
+instance Binary Command
 
-instance FromField Txid where
-  fromField f = fmap Txid . fromField f
+cmdJsonOpts :: Options
+cmdJsonOpts = defaultOptions { sumEncoding = TaggedObject "op" "data"
+                             , fieldLabelModifier = drop 1
+                             }
 
-instance Show Txid where
-  show (Txid t) = show $ B16.encode t
+instance FromJSON Command where
+  parseJSON = genericParseJSON cmdJsonOpts
+
+instance ToJSON Command where
+  toJSON = genericToJSON cmdJsonOpts
 
 
 --------------------------------------------------------------------------------
 -- Transaction
 
 data Transaction = Tx
-  { _txid   :: Txid
-  , _spends :: [Txid]
+  { _txid :: Text
+  , _cmd :: Command
+  , _clientTime :: Text
   } deriving (Eq, Show, Generic)
 
 instance Binary Transaction
@@ -56,16 +58,22 @@ instance Binary Transaction
 instance Ord Transaction where
   compare t u = _txid t `compare` _txid u
 
-instance FromJSON Transaction 
+instance FromJSON Transaction where
+  parseJSON val =
+    Tx <$> extract "{id}" val
+       <*> parseJSON val
+       <*> extract "{ts}" val
 
 instance ToJSON Transaction where
-  toEncoding = genericToEncoding defaultOptions
+  toJSON (Tx txid cmd t) =
+    build "{id,ts}" (toJSON cmd) (txid,t)
 
 instance ToRow Transaction where
-  toRow (Tx a b) = [toField a, toField $ PGArray b]
+  toRow (Tx a b t) = [toField a, toField $ toJSON b, toField t]
 
 instance FromRow Transaction where
-  fromRow = Tx <$> field <*> (fromPGArray <$> field)
+  fromRow = Tx <$> field <*> (toCommand <$> field) <*> field
+    where toCommand = fromJust . decode
 
 type STX = (UTCTime, Transaction)
 type ITX = (STX, Signature)
@@ -78,22 +86,13 @@ type Backlog = Map UTCTime Transaction
 
 data Node = Node
   { _config  :: Config
-  , _hub     :: MVar NodeQuery
   , _backlog :: MVar Backlog
+  , _broadcast :: BroadcastMessage -> IO ()
+  , _broadcastOut :: MVar BroadcastMessage
   }
 
 
 type SigMap = [(PublicKey, Signature)]
-
-data NodeQuery =
-    ClientTx Transaction
-  -- Get a new transaction from a node, put into backlog
-  | AdviseTx STX
-  -- Transaction comes out of backlog, time to sign and broadcast
-  | MatureTx STX
-  -- Transaction pending validation
-  | CheckAgreeTx (STX, SigMap)
-  deriving (Show)
 
 
 data BroadcastMessage =

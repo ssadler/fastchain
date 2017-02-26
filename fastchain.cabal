@@ -21,7 +21,9 @@ executable fastchain
                      , aeson
                      , aeson-quick
                      , aeson-pretty
+                     , attoparsec
                      , base16-bytestring
+                     , base58-bytestring
                      , binary
                      , binary-orphans
                      , bytestring
@@ -29,12 +31,14 @@ executable fastchain
                      , cryptonite
                      , containers
                      , http-conduit
+                     , http-types
                      , hslogger
                      , memory
                      , microlens
                      , microlens-platform
                      , optparse-applicative
                      , postgresql-simple
+                     , process
                      , scotty
                      , slave-thread
                      , text
