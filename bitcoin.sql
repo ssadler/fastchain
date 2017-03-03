@@ -1,7 +1,6 @@
 
 drop table if exists outputs;
 create table outputs (
-    asset varchar(64) not null,
     txid varchar(64) not null,
     output int not null,
     amount integer not null,
@@ -23,8 +22,8 @@ $$ LANGUAGE SQL;
 
 CREATE OR REPLACE FUNCTION bitcoin_init(json)
 RETURNS void AS $$
-    insert into outputs (asset, txid, output, amount)
-        values ($1->>'asset', $1->>'id', 0, 1000);
+    insert into outputs (txid, output, amount)
+        values ($1->>'id', 0, 1000);
 $$ LANGUAGE SQL;
 
 
@@ -61,8 +60,8 @@ BEGIN
 		raise exception 'Amount mismatch';
     end if;
 
-    insert into outputs (asset, txid, output, amount)
-		(select tx->>'asset', tx->>'id', output, amount from tx_outputs(tx));
+    insert into outputs (txid, output, amount)
+		(select tx->>'id', output, amount from tx_outputs(tx));
 END
 $$ LANGUAGE plpgsql;
 

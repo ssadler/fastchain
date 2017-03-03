@@ -11,12 +11,6 @@ CREATE TABLE if not exists apps (
     ts timestamp with time zone not null
 );
 
-CREATE TABLE if not exists assets (
-    id varchar(64) PRIMARY KEY,
-    app_id varchar(64) not null,
-    ts timestamp with time zone not null
-);
-
 CREATE or replace FUNCTION create_app(json,timestamp with time zone)
 RETURNS void AS $$
 DECLARE
@@ -34,25 +28,3 @@ begin
 
     end loop;
 
-
-CREATE or replace FUNCTION create_asset(json,timestamp with time zone)
-RETURNS varchar(64) AS $$
-DECLARE
-    asset varchar(64);
-    app varchar(64);
-    pl record;
-BEGIN
-    select $1->>'id', $1->>'app' into asset, app;
-    insert into assets (id, app_id, ts)
-        values (asset, app, $2)
-        returning id into asset;
-    execute 'create schema asset_'||asset;
-    for pl in select * from information_schema.tables
-                       where table_schema = 'app_'||app LOOP
-        execute format('CREATE VIEW asset_%s.%s WITH (security_barrier) AS
-                   (SELECT * FROM app_%s.%s WHERE asset = %L)
-                   WITH CHECK OPTION', asset, pl.table_name, app, pl.table_name, asset);
-    END LOOP;
-    return asset;
-END
-$$ LANGUAGE plpgsql;

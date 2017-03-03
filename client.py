@@ -15,39 +15,28 @@ def post(tx):
         1
     return txid
 
-tx = {
+
+app_id = post({
     'op': 'CreateApp',
     'sql': open('bitcoin.sql').read(),
     'name': 'bitcoin',
     'ts': str(time.time()),
-}
-
-app_id = post(tx)
+})
 
 
-tx = {
-    'op': 'CreateAsset',
-    'app': app_id,
-    'ts': str(time.time()),
-}
-
-asset_id = post(tx)
-
-
-tx = {
+input_txid = post({
     'op': 'Call',
-    'asset': asset_id,
+    'app': app_id,
     'proc': 'bitcoin_init',
     'body': {},
     'ts': str(time.time()),
-}
+})
 
-input_txid = post(tx)
 
 for i in range(1000):
     input_txid = post({
         'op': 'Call',
-        'asset': asset_id,
+        'app': app_id,
         'proc': 'bitcoin_spend',
         'body': {
             'inputs': [{'txid': input_txid, 'output': 0}],

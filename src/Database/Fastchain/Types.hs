@@ -26,8 +26,7 @@ type Id = Text
 
 data Command =
     CreateApp { _sql :: SQL, _name :: Text }
-  | CreateAsset { _app :: Id }
-  | Call { _proc :: Text, _asset :: Id, _body :: Value }
+  | Call { _proc :: Text, _body :: Value }
   deriving (Eq, Generic, Show)
 
 instance Binary Command
