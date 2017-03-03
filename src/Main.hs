@@ -2,10 +2,8 @@
 
 module Main where
 
-import Database.Fastchain.App
 import Database.Fastchain.Backlog
 import Database.Fastchain.Config
-import Database.Fastchain.Crypto
 import Database.Fastchain.Hub
 import Database.Fastchain.Http
 import Database.Fastchain.Node
@@ -27,7 +25,7 @@ main = do
       args = (,) <$> path <*> clientFlag
       parse = info (helper <*> args) mempty
 
-  (configPath, startClient) <- execParser parse
+  (configPath, _) <- execParser parse
   setupLogging
   node <- loadConfig configPath >>= makeNode
   -- when startClient $ (forkIO $ testClient node 1000000) *> pure ()

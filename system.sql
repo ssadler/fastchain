@@ -27,6 +27,14 @@ END
 $$ LANGUAGE plpgsql;
 
 
+create or replace function create_app_triggers(varchar(64))
+returns void as $$
+begin
+    for row in SELECT * FROM information_schema.tables where table_schema = $1
+
+    end loop;
+
+
 CREATE or replace FUNCTION create_asset(json,timestamp with time zone)
 RETURNS varchar(64) AS $$
 DECLARE

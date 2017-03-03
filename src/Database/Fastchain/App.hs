@@ -26,7 +26,7 @@ createApp node (t,tx) sql = do
         \c -> withTransaction c $ do
           _ <- query c "select create_app(?,?)" (toJSON tx, t) :: IO ([Only ()])
           execute_ c $ Query $ "set search_path to app_" <> encodeUtf8 (_txid tx)
-          execute_ c (Query $ encodeUtf8 sql)
+          execute_ c $ Query $ encodeUtf8 sql
   lift $ (op *> pure ()) `catch` (print :: SqlError -> IO ())
 
 

@@ -44,7 +44,7 @@ tx = {
 
 input_txid = post(tx)
 
-for i in range(1):
+for i in range(1000):
     input_txid = post({
         'op': 'Call',
         'asset': asset_id,

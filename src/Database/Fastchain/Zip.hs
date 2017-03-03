@@ -64,21 +64,21 @@ runZipIO feeds onSignedTx =
     (lift getCurrentTime)
     updateHeads
     (\p m -> lift $ logM "zip" p m)
-  pollIO us socks = poll us $ (\s -> Sock s [In,Err] Nothing) <$> socks
+  pollIO ms = poll ms . fmap (\s -> Sock s [In,Err] Nothing)
 
 
 updateHeads :: Monad m => [QueueHead] -> Zip m [QueueHead]
 updateHeads oldHeads = do
-  maxtime <- addUTCTime 3 <$> eff getCurrentTime'
+  maxtime <- addUTCTime 1 <$> eff getCurrentTime'
   let pollMore heads = do
         d <- diffUTCTime maxtime <$> eff getCurrentTime'
-        let ms = round $ d * 1000
-        if ms <= 0
+        if d <= 0
            then pure heads
            else do
              let socks = _sock <$> heads
-             results <- zip heads <$> eff2 poll' ms socks
-             newHeads <- forM results (uncurry updateHead)
+             results <- zip heads <$> eff2 poll' 0 socks
+             newHeads <- forM results $ uncurry updateHead
+             when (newHeads == heads) $ eff delay'
              let (done,need) = partition (isJust . _mitx) newHeads
              if null need then pure done
                           else (done++) <$> pollMore need
@@ -102,6 +102,7 @@ zipify heads = do
       agree = takeWhile ((==stx) . fst) stxs
       nAgree = if null mrest then 0 else length agree
 
+  -- nAgree will be 0 if no peers are offering transactions
   if nAgree == 0
      then eff delay'
      else eff1 yieldTx' (stx,snd <$> agree)
