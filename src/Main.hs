@@ -2,11 +2,13 @@
 
 module Main where
 
+import Database.Fastchain.App
 import Database.Fastchain.Backlog
 import Database.Fastchain.Config
 import Database.Fastchain.Hub
 import Database.Fastchain.Http
 import Database.Fastchain.Node
+import Database.Fastchain.Monitors
 import Database.Fastchain.Prelude
 import Database.Fastchain.Schema
 import Database.Fastchain.Types
@@ -27,8 +29,10 @@ main = do
 
   (configPath, _) <- execParser parse
   setupLogging
-  node <- loadConfig configPath >>= makeNode
-  -- when startClient $ (forkIO $ testClient node 1000000) *> pure ()
+
+  conf <- loadConfig configPath
+  ekg <- initMonitors $ 18500 + mod (_port conf) 100
+  node <- makeNode conf ekg
   db_ node dbSetup
   runNode node
 
@@ -38,6 +42,7 @@ runNode node = do
   withHub node $ \feeds -> do
     forkIO $ runBacklog node
     forkIO $ runHttp node
+    forkIO $ runApp node
     runZipIO feeds $ onVotedTx node
 
 

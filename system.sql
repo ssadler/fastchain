@@ -11,6 +11,15 @@ CREATE TABLE if not exists apps (
     ts timestamp with time zone not null
 );
 
+
+create table if not exists transactions (
+    id serial primary key,
+    txid varchar(64),
+    payload json not null,
+    ts timestamp with time zone not null
+);
+
+
 CREATE or replace FUNCTION create_app(json,timestamp with time zone)
 RETURNS void AS $$
 DECLARE
@@ -21,10 +30,10 @@ END
 $$ LANGUAGE plpgsql;
 
 
-create or replace function create_app_triggers(varchar(64))
-returns void as $$
-begin
-    for row in SELECT * FROM information_schema.tables where table_schema = $1
-
-    end loop;
-
+--create or replace function create_app_triggers(varchar(64))
+--returns void as $$
+--begin
+--    for row in SELECT * FROM information_schema.tables where table_schema = $1
+--
+--    end loop;
+--

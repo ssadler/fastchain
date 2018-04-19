@@ -6,6 +6,7 @@ module Database.Fastchain.Types where
 
 import Data.Aeson.Types
 import Data.Binary.Orphans
+import Data.Pool
 
 import Database.PostgreSQL.Simple.ToRow
 import Database.PostgreSQL.Simple.FromRow
@@ -15,18 +16,20 @@ import GHC.Generics
 
 import Database.Fastchain.Crypto
 import Database.Fastchain.Prelude
+import Database.Fastchain.Monitors
 
 --------------------------------------------------------------------------------
 -- App
 
 
-type SQL = Text
-type Id = Text
+type SQL = ByteString
+type Id = ByteString
 
 
 data Command =
     CreateApp { _sql :: SQL, _name :: Text }
-  | Call { _proc :: Text, _body :: Value }
+  | Call { _app :: Id, _proc :: Text, _body :: Value }
+  | Noop
   deriving (Eq, Generic, Show)
 
 instance Binary Command
@@ -47,7 +50,7 @@ instance ToJSON Command where
 -- Transaction
 
 data Transaction = Tx
-  { _txid :: Text
+  { _txid :: ByteString
   , _cmd :: Command
   , _clientTime :: Text
   } deriving (Eq, Show, Generic)
@@ -85,9 +88,12 @@ type Backlog = Map UTCTime Transaction
 
 data Node = Node
   { _config  :: Config
+  , _dbPool :: Pool Connection
   , _backlog :: MVar Backlog
   , _broadcast :: BroadcastMessage -> IO ()
   , _broadcastOut :: MVar BroadcastMessage
+  , _exec :: Chan STX
+  , _monitors :: Monitors
   }
 
 
@@ -124,3 +130,11 @@ instance FromJSON Config
 
 instance Show (Chan a) where
   show _ = "Chan ?"
+
+
+instance ToJSON ByteString where
+  toJSON = toJSON . decodeUtf8
+
+
+instance FromJSON ByteString where
+  parseJSON = fmap encodeUtf8 . parseJSON

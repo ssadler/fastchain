@@ -20,7 +20,7 @@ module Database.Fastchain.Prelude
   , textPack
   ) where
 
-import Control.Concurrent as ALL hiding (newChan, readChan, writeChan)
+import Control.Concurrent as ALL
 import Control.Exception as ALL (catch)
 import Control.Monad as ALL
 import Control.Monad.IO.Class as ALL

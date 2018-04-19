@@ -16,7 +16,7 @@ cabal-version:       >=1.10
 executable fastchain
   hs-source-dirs:      src
   main-is:             Main.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -with-rtsopts=-T
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N2 -with-rtsopts=-T
   build-depends:       base
                      , aeson
                      , aeson-quick
@@ -39,6 +39,7 @@ executable fastchain
                      , optparse-applicative
                      , postgresql-simple
                      , process
+                     , resource-pool
                      , scotty
                      , slave-thread
                      , text
