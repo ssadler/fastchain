@@ -8,6 +8,6 @@ Write queries are sent to the replication protocol before being applied to the d
 
 The consensus protocol sucks, it uses wallclock timestamps.
 
-It was nearly possible, but not quite, to configure an SQL environment against sources of volatility :). This is more about securing against programmers doing things they shouldn't than any real adversary.
+It was nearly possible, but not quite, to configure an SQL environment against sources of volatility. For example, an auto increment primary key is indeterministic with many concurrent producers.
 
 Enjoy!
